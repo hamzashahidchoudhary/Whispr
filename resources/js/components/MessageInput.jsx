@@ -21,24 +21,35 @@ export default function MessageInput({ onSend, onTyping, conversationId }) {
 
     const handleSend = async () => {
         if ((!text.trim() && selectedFiles.length === 0) || sending) return
+
+        const currentText = text.trim()
+        const currentFiles = [...selectedFiles]
+
+        // Clear input IMMEDIATELY before sending
+        setText('')
+        setSelectedFiles([])
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto'
+        }
+        onTyping(false)
+        clearTimeout(typingTimeout.current)
+
         setSending(true)
         try {
-            if (selectedFiles.length > 0) {
+            if (currentFiles.length > 0) {
                 setUploading(true)
                 const formData = new FormData()
-                if (text.trim()) formData.append('body', text.trim())
-                else formData.append('body', '')
-                selectedFiles.forEach(file => formData.append('attachments[]', file))
+                formData.append('body', currentText || '')
+                currentFiles.forEach(file => formData.append('attachments[]', file))
                 await onSend(null, formData)
-                setSelectedFiles([])
+                setUploading(false)
             } else {
-                await onSend(text.trim())
+                await onSend(currentText)
             }
-            setText('')
-            onTyping(false)
-            if (textareaRef.current) {
-                textareaRef.current.style.height = 'auto'
-            }
+        } catch (err) {
+            // Restore text if send failed
+            setText(currentText)
+            console.error('Send failed', err)
         } finally {
             setSending(false)
             setUploading(false)
@@ -72,16 +83,21 @@ export default function MessageInput({ onSend, onTyping, conversationId }) {
                     {selectedFiles.map((file, i) => (
                         <div key={i} className="relative group">
                             {file.type.startsWith('image/') ? (
-                                <img src={URL.createObjectURL(file)} alt=""
-                                    className="w-16 h-16 rounded-xl object-cover border border-white/10" />
+                                <img
+                                    src={URL.createObjectURL(file)}
+                                    alt=""
+                                    className="w-16 h-16 rounded-xl object-cover border border-white/10"
+                                />
                             ) : (
                                 <div className="w-16 h-16 rounded-xl bg-white/5 border border-white/10 flex flex-col items-center justify-center p-1">
                                     <span className="text-2xl">📎</span>
                                     <p className="text-[8px] text-gray-500 truncate w-full text-center">{file.name}</p>
                                 </div>
                             )}
-                            <button onClick={() => removeFile(i)}
-                                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                                onClick={() => removeFile(i)}
+                                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
                                 <X size={10} className="text-white" />
                             </button>
                         </div>
@@ -90,12 +106,20 @@ export default function MessageInput({ onSend, onTyping, conversationId }) {
             )}
 
             <div className="flex items-end gap-2">
-                <button onClick={() => fileRef.current.click()}
-                    className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-xl transition-all flex-shrink-0">
+                <button
+                    onClick={() => fileRef.current.click()}
+                    className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-xl transition-all flex-shrink-0"
+                >
                     <Paperclip size={18} />
                 </button>
-                <input ref={fileRef} type="file" multiple onChange={handleFileChange} className="hidden"
-                    accept="image/*,video/*,audio/*,.pdf,.docx,.zip,.txt" />
+                <input
+                    ref={fileRef}
+                    type="file"
+                    multiple
+                    onChange={handleFileChange}
+                    className="hidden"
+                    accept="image/*,video/*,audio/*,.pdf,.docx,.zip,.txt"
+                />
 
                 <div className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-4 py-2.5 focus-within:border-indigo-500/50 transition-all">
                     <textarea

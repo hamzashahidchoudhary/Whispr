@@ -13,6 +13,7 @@ export function useConversation(conversationId) {
 
         setLoading(true)
         setMessages([])
+        lastMessageId.current = null
 
         // Load initial messages
         api.get(`/conversations/${conversationId}/messages`)
@@ -25,7 +26,7 @@ export function useConversation(conversationId) {
             })
             .finally(() => setLoading(false))
 
-        // Poll for new messages every 3 seconds
+        // Poll for new messages every 2 seconds
         pollingRef.current = setInterval(() => {
             api.get(`/conversations/${conversationId}/messages`)
                 .then(res => {
@@ -39,7 +40,7 @@ export function useConversation(conversationId) {
                     }
                 })
                 .catch(() => {})
-        }, 3000)
+        }, 2000)
 
         return () => {
             clearInterval(pollingRef.current)
@@ -71,7 +72,7 @@ export function useConversation(conversationId) {
         return data
     }
 
-    const sendTyping = () => {} // Disabled without WebSockets
+    const sendTyping = () => {}
 
     return { messages, loading, typingUsers, sendMessage, sendTyping, setMessages }
 }
