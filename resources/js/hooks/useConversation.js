@@ -21,7 +21,11 @@ export function useConversation(conversationId) {
         const echo = window.Echo
         channelRef.current = echo.channel(`conversation.${conversationId}`)
             .listen('.message.sent', ({ message }) => {
-                setMessages(prev => [...prev, message])
+                setMessages(prev => {
+                    // Avoid duplicate messages
+                    if (prev.find(m => m.id === message.id)) return prev
+                    return [...prev, message]
+                })
             })
             .listenForWhisper('typing', ({ user, isTyping }) => {
                 setTypingUsers(prev =>
@@ -36,12 +40,27 @@ export function useConversation(conversationId) {
         }
     }, [conversationId])
 
-    const sendMessage = async (body, replyToId = null) => {
-        const { data } = await api.post(`/conversations/${conversationId}/messages`, {
-            body,
-            reply_to_id: replyToId,
+    const sendMessage = async (body, formData = null) => {
+        let data
+        if (formData) {
+            const res = await api.post(
+                `/conversations/${conversationId}/messages`,
+                formData,
+                { headers: { 'Content-Type': 'multipart/form-data' } }
+            )
+            data = res.data
+        } else {
+            const res = await api.post(`/conversations/${conversationId}/messages`, {
+                body,
+                reply_to_id: null,
+            })
+            data = res.data
+        }
+        // Add own message immediately (optimistic update)
+        setMessages(prev => {
+            if (prev.find(m => m.id === data.id)) return prev
+            return [...prev, data]
         })
-        setMessages(prev => [...prev, data])
         return data
     }
 

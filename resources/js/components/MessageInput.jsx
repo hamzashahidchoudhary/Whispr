@@ -1,6 +1,5 @@
 import { useState, useRef } from 'react'
-import { Paperclip, Send, Smile, Mic, X } from 'lucide-react'
-import api from '../api/axios'
+import { Paperclip, Send, X } from 'lucide-react'
 
 export default function MessageInput({ onSend, onTyping, conversationId }) {
     const [text, setText] = useState('')
@@ -13,10 +12,8 @@ export default function MessageInput({ onSend, onTyping, conversationId }) {
 
     const handleChange = (e) => {
         setText(e.target.value)
-        // Auto resize textarea
         e.target.style.height = 'auto'
         e.target.style.height = Math.min(e.target.scrollHeight, 128) + 'px'
-        // Typing indicator
         onTyping(true)
         clearTimeout(typingTimeout.current)
         typingTimeout.current = setTimeout(() => onTyping(false), 1500)
@@ -30,13 +27,10 @@ export default function MessageInput({ onSend, onTyping, conversationId }) {
                 setUploading(true)
                 const formData = new FormData()
                 if (text.trim()) formData.append('body', text.trim())
+                else formData.append('body', '')
                 selectedFiles.forEach(file => formData.append('attachments[]', file))
-                const { data } = await api.post(`/conversations/${conversationId}/messages`, formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
-                })
-                onSend(null, data)
+                await onSend(null, formData)
                 setSelectedFiles([])
-                setUploading(false)
             } else {
                 await onSend(text.trim())
             }
@@ -109,7 +103,7 @@ export default function MessageInput({ onSend, onTyping, conversationId }) {
                         value={text}
                         onChange={handleChange}
                         onKeyDown={handleKeyDown}
-                        placeholder="Type a message... (Enter to send, Shift+Enter for new line)"
+                        placeholder="Type a message... (Enter to send)"
                         rows={1}
                         className="w-full bg-transparent resize-none outline-none text-sm text-white placeholder-gray-600 max-h-32 leading-relaxed"
                         style={{ height: 'auto' }}
@@ -128,7 +122,7 @@ export default function MessageInput({ onSend, onTyping, conversationId }) {
                     {uploading ? (
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
-                        <Send size={16} className={canSend ? 'translate-x-0.5' : ''} />
+                        <Send size={16} />
                     )}
                 </button>
             </div>
