@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import api from '../api/axios'
-import '../echo'
 
 export function useConversation(conversationId) {
     const [messages, setMessages] = useState([])
     const [loading, setLoading] = useState(true)
     const [typingUsers, setTypingUsers] = useState([])
-    const channelRef = useRef(null)
+    const pollingRef = useRef(null)
+    const lastMessageId = useRef(null)
 
     useEffect(() => {
         if (!conversationId) return
@@ -14,29 +14,35 @@ export function useConversation(conversationId) {
         setLoading(true)
         setMessages([])
 
+        // Load initial messages
         api.get(`/conversations/${conversationId}/messages`)
-            .then(res => setMessages(res.data.data.reverse()))
+            .then(res => {
+                const msgs = res.data.data.reverse()
+                setMessages(msgs)
+                if (msgs.length > 0) {
+                    lastMessageId.current = msgs[msgs.length - 1].id
+                }
+            })
             .finally(() => setLoading(false))
 
-        const echo = window.Echo
-        channelRef.current = echo.channel(`conversation.${conversationId}`)
-            .listen('.message.sent', ({ message }) => {
-                setMessages(prev => {
-                    // Avoid duplicate messages
-                    if (prev.find(m => m.id === message.id)) return prev
-                    return [...prev, message]
+        // Poll for new messages every 3 seconds
+        pollingRef.current = setInterval(() => {
+            api.get(`/conversations/${conversationId}/messages`)
+                .then(res => {
+                    const msgs = res.data.data.reverse()
+                    if (msgs.length > 0) {
+                        const latest = msgs[msgs.length - 1]
+                        if (latest.id !== lastMessageId.current) {
+                            lastMessageId.current = latest.id
+                            setMessages(msgs)
+                        }
+                    }
                 })
-            })
-            .listenForWhisper('typing', ({ user, isTyping }) => {
-                setTypingUsers(prev =>
-                    isTyping
-                        ? [...prev.filter(u => u.id !== user.id), user]
-                        : prev.filter(u => u.id !== user.id)
-                )
-            })
+                .catch(() => {})
+        }, 3000)
 
         return () => {
-            window.Echo.leave(`conversation.${conversationId}`)
+            clearInterval(pollingRef.current)
         }
     }, [conversationId])
 
@@ -56,17 +62,16 @@ export function useConversation(conversationId) {
             })
             data = res.data
         }
-        // Add own message immediately (optimistic update)
+        // Show own message immediately
         setMessages(prev => {
             if (prev.find(m => m.id === data.id)) return prev
             return [...prev, data]
         })
+        lastMessageId.current = data.id
         return data
     }
 
-    const sendTyping = (isTyping) => {
-        channelRef.current?.whisper('typing', { isTyping })
-    }
+    const sendTyping = () => {} // Disabled without WebSockets
 
     return { messages, loading, typingUsers, sendMessage, sendTyping, setMessages }
 }
