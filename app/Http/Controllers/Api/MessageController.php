@@ -86,7 +86,11 @@ class MessageController extends Controller
         $message->load(['sender', 'attachments', 'replyTo.sender']);
         $message->sender->avatar_url = $message->sender->avatarUrl();
 
-        broadcast(new MessageSent($message))->toOthers();
+        try {
+    broadcast(new MessageSent($message))->toOthers();
+} catch (\Exception $e) {
+    \Log::error('Broadcast failed: ' . $e->getMessage());
+}
 
         return response()->json($message, 201);
     }
