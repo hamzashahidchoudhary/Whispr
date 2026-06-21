@@ -47,8 +47,6 @@ export default function MessageInput({ onSend, onTyping, conversationId }) {
                 await onSend(currentText)
             }
         } catch (err) {
-            // Restore text if send failed
-            setText(currentText)
             console.error('Send failed', err)
         } finally {
             setSending(false)
