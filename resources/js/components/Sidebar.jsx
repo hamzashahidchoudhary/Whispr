@@ -13,9 +13,16 @@ export default function Sidebar({ activeId }) {
     const [searchResults, setSearchResults] = useState([])
     const [searching, setSearching] = useState(false)
 
-    useEffect(() => {
-        api.get('/conversations').then(res => setConversations(res.data.data || []))
-    }, [])
+    const loadConversations = () => {
+    api.get('/conversations').then(res => setConversations(res.data.data || []))
+}
+
+useEffect(() => {
+    loadConversations()
+    // Refresh sidebar every 3 seconds to show latest messages and clear badges
+    const interval = setInterval(loadConversations, 3000)
+    return () => clearInterval(interval)
+}, [])
 
     useEffect(() => {
         if (!search.trim()) { setSearchResults([]); setSearching(false); return }
