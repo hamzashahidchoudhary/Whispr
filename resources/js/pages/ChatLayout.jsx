@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import ConversationView from '../components/ConversationView'
 import { useAuth } from '../contexts/AuthContext'
@@ -9,54 +9,86 @@ export default function ChatLayout() {
     const { user } = useAuth()
 
     return (
-        <div style={{ height: '100dvh', display: 'flex', overflow: 'hidden', background: '#0d0f14' }}>
-            {/* Sidebar - full screen on mobile when no conversation open */}
+        <div style={{
+            display: 'flex',
+            height: '100dvh',
+            overflow: 'hidden',
+            background: '#0d0f14',
+        }}>
+            {/*
+              SIDEBAR:
+              - Mobile: show ONLY when no conversation is open
+              - Desktop: always show, fixed width 320px
+            */}
             <div style={{
-                display: id ? 'none' : 'flex',
+                display: 'flex',
                 flexDirection: 'column',
-                width: '100%',
+                width: '320px',
+                minWidth: '320px',
                 height: '100dvh',
-            }}
-                className="md:flex md:w-80 md:min-w-80"
-            >
+                borderRight: '1px solid rgba(255,255,255,0.05)',
+                // On mobile hide sidebar when conversation is open
+            }} className={id ? 'hidden md:flex' : 'flex w-full md:w-80 md:min-w-80'}>
                 <Sidebar activeId={id} />
             </div>
 
-            {/* On desktop always show sidebar */}
-            <div style={{ display: 'none' }}
-                className="md:flex md:flex-col md:w-80 md:min-w-80 md:h-full"
-                id="desktop-sidebar"
-            >
-            </div>
-
-            {/* Conversation view */}
+            {/*
+              MAIN AREA:
+              - Mobile: show ONLY when conversation is open (full screen)
+              - Desktop: always show, takes remaining space
+            */}
             <div style={{
-                display: id ? 'flex' : 'none',
-                flexDirection: 'column',
                 flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
                 height: '100dvh',
                 overflow: 'hidden',
-            }}
-                className="md:flex"
-            >
+                minWidth: 0,
+            }} className={id ? 'flex' : 'hidden md:flex'}>
                 {id ? (
                     <ConversationView />
-                ) : null}
-            </div>
-
-            {/* Desktop empty state */}
-            <div className="hidden md:flex flex-1 items-center justify-center bg-[#0d0f14]"
-                style={{ display: id ? 'none' : undefined }}
-            >
-                {!id && (
-                    <div className="text-center px-6">
-                        <div className="w-20 h-20 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-indigo-500/30">
-                            <MessageCircle size={36} className="text-white" />
+                ) : (
+                    // Desktop empty state when no conversation selected
+                    <div style={{
+                        flex: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: '#0d0f14',
+                    }}>
+                        <div style={{ textAlign: 'center', padding: '0 24px' }}>
+                            <div style={{
+                                width: 80, height: 80,
+                                background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                                borderRadius: 24,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                margin: '0 auto 24px',
+                                boxShadow: '0 20px 40px rgba(79,70,229,0.3)',
+                            }}>
+                                <MessageCircle size={36} color="white" />
+                            </div>
+                            <h2 style={{ color: 'white', fontSize: 20, fontWeight: 700, margin: '0 0 8px' }}>
+                                Welcome to Whispr, {user?.name?.split(' ')[0]}!
+                            </h2>
+                            <p style={{ color: '#6b7280', fontSize: 14, margin: 0, maxWidth: 260 }}>
+                                Select a conversation from the sidebar or search for someone to start chatting.
+                            </p>
+                            <div style={{
+                                display: 'flex', gap: 12, marginTop: 24,
+                                justifyContent: 'center',
+                            }}>
+                                {['💬 Chat', '👥 Groups', '📎 Files'].map(item => (
+                                    <div key={item} style={{
+                                        background: 'rgba(255,255,255,0.05)',
+                                        border: '1px solid rgba(255,255,255,0.05)',
+                                        borderRadius: 12, padding: '8px 12px',
+                                        fontSize: 12, color: '#6b7280',
+                                    }}>
+                                        {item}
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                        <h2 className="text-xl font-bold text-white mb-2">Welcome to Whispr!</h2>
-                        <p className="text-gray-500 text-sm max-w-xs">
-                            Select a conversation or search for someone to start chatting.
-                        </p>
                     </div>
                 )}
             </div>
