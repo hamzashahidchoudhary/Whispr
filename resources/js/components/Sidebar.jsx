@@ -41,10 +41,10 @@ export default function Sidebar({ activeId }) {
     }
 
     return (
-        <aside className="w-[320px] min-w-[320px] flex flex-col h-full bg-[#111318] border-r border-white/5">
+        <aside className="w-full flex flex-col h-full bg-[#111318] border-r border-white/5">
             {/* Header */}
-            <div className="px-4 py-4 border-b border-white/5">
-                <div className="flex items-center justify-between mb-4">
+            <div className="px-4 pt-safe pt-4 pb-3 border-b border-white/5">
+                <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                         <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
                             <MessageCircle size={16} className="text-white" />
@@ -53,18 +53,18 @@ export default function Sidebar({ activeId }) {
                     </div>
                     <div className="flex items-center gap-1">
                         <Link to="/chat/settings"
-                            className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/5 rounded-lg transition-all">
-                            <Settings size={16} />
+                            className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/5 rounded-xl transition-all">
+                            <Settings size={18} />
                         </Link>
                         <button onClick={handleLogout}
-                            className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all">
-                            <LogOut size={16} />
+                            className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all">
+                            <LogOut size={18} />
                         </button>
                     </div>
                 </div>
 
                 {/* User info */}
-                <div className="flex items-center gap-3 p-2 rounded-xl bg-white/5">
+                <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white/5">
                     <div className="relative">
                         <img src={user?.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover" />
                         <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 border-2 border-[#111318] rounded-full" />
@@ -88,7 +88,7 @@ export default function Sidebar({ activeId }) {
                     />
                     {search && (
                         <button onClick={() => { setSearch(''); setSearchResults([]) }}
-                            className="text-gray-600 hover:text-gray-400">
+                            className="text-gray-600 hover:text-gray-400 flex-shrink-0">
                             <X size={14} />
                         </button>
                     )}
@@ -101,29 +101,32 @@ export default function Sidebar({ activeId }) {
                     <p className="text-xs text-gray-600 px-4 py-2 font-medium uppercase tracking-wider">People</p>
                     {searchResults.map(u => (
                         <button key={u.id} onClick={() => startConversation(u.id)}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-all">
+                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 active:bg-white/10 transition-all">
                             <div className="relative">
-                                <img src={u.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover" />
+                                <img src={u.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
                                 {u.is_online && (
                                     <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 border-2 border-[#111318] rounded-full" />
                                 )}
                             </div>
-                            <div className="text-left">
-                                <p className="text-sm font-medium text-white">{u.name}</p>
-                                <p className="text-xs text-gray-500">@{u.username}</p>
+                            <div className="text-left flex-1 min-w-0">
+                                <p className="text-sm font-medium text-white truncate">{u.name}</p>
+                                <p className="text-xs text-gray-500 truncate">@{u.username}</p>
                             </div>
-                            <Plus size={16} className="ml-auto text-gray-600" />
+                            <Plus size={16} className="text-gray-600 flex-shrink-0" />
                         </button>
                     ))}
                 </div>
             )}
 
             {searching && (
-                <div className="px-4 py-3 text-xs text-gray-600">Searching...</div>
+                <div className="px-4 py-3 text-xs text-gray-600 flex items-center gap-2">
+                    <div className="w-3 h-3 border border-gray-600 border-t-gray-400 rounded-full animate-spin" />
+                    Searching...
+                </div>
             )}
 
-            {/* Conversations */}
-            <div className="flex-1 overflow-y-auto scrollbar-thin">
+            {/* Conversations List */}
+            <div className="flex-1 overflow-y-auto overscroll-contain">
                 {!search && conversations.length === 0 && (
                     <div className="text-center py-16 px-6">
                         <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -157,18 +160,22 @@ function ConversationItem({ conversation, active, currentUser }) {
 
     return (
         <Link to={`/chat/${conversation.id}`}
-            className={`flex items-center gap-3 px-4 py-3 transition-all border-b border-white/3 ${
-                active ? 'bg-indigo-600/15 border-l-2 border-l-indigo-500' : 'hover:bg-white/5 border-l-2 border-l-transparent'
+            className={`flex items-center gap-3 px-4 py-3.5 transition-all border-b border-white/3 active:bg-white/10 ${
+                active
+                    ? 'bg-indigo-600/15 border-l-2 border-l-indigo-500'
+                    : 'hover:bg-white/5 border-l-2 border-l-transparent'
             }`}>
             <div className="relative flex-shrink-0">
-                <img src={avatar} alt="" className="w-11 h-11 rounded-full object-cover" />
+                <img src={avatar} alt="" className="w-12 h-12 rounded-full object-cover" />
                 {conversation.type === 'private' && other?.is_online && (
                     <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-[#111318] rounded-full" />
                 )}
             </div>
             <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-0.5">
-                    <p className={`text-sm font-medium truncate ${active ? 'text-white' : 'text-gray-200'}`}>{title}</p>
+                    <p className={`text-sm font-semibold truncate ${active ? 'text-white' : 'text-gray-200'}`}>
+                        {title}
+                    </p>
                     {last && (
                         <span className="text-[10px] text-gray-600 ml-2 flex-shrink-0">
                             {formatDistanceToNow(new Date(last.created_at), { addSuffix: false })}
@@ -176,11 +183,11 @@ function ConversationItem({ conversation, active, currentUser }) {
                     )}
                 </div>
                 <div className="flex items-center justify-between">
-                    <p className="text-xs text-gray-600 truncate">
-                        {last?.is_deleted ? '🚫 Message deleted' : last?.body || 'No messages yet'}
+                    <p className="text-xs text-gray-500 truncate pr-2">
+                        {last?.is_deleted ? '🚫 Deleted' : last?.body || 'No messages yet'}
                     </p>
                     {unread > 0 && (
-                        <span className="ml-2 bg-indigo-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 flex-shrink-0">
+                        <span className="bg-indigo-500 text-white text-[10px] font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5 flex-shrink-0">
                             {unread > 99 ? '99+' : unread}
                         </span>
                     )}

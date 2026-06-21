@@ -13,7 +13,7 @@ export default function MessageInput({ onSend, onTyping, conversationId }) {
     const handleChange = (e) => {
         setText(e.target.value)
         e.target.style.height = 'auto'
-        e.target.style.height = Math.min(e.target.scrollHeight, 128) + 'px'
+        e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px'
         onTyping(true)
         clearTimeout(typingTimeout.current)
         typingTimeout.current = setTimeout(() => onTyping(false), 1500)
@@ -25,7 +25,6 @@ export default function MessageInput({ onSend, onTyping, conversationId }) {
         const currentText = text.trim()
         const currentFiles = [...selectedFiles]
 
-        // Clear input IMMEDIATELY before sending
         setText('')
         setSelectedFiles([])
         if (textareaRef.current) {
@@ -74,28 +73,23 @@ export default function MessageInput({ onSend, onTyping, conversationId }) {
     const canSend = (text.trim() || selectedFiles.length > 0) && !sending
 
     return (
-        <div className="border-t border-white/5 bg-[#111318] px-4 py-3">
+        <div className="bg-[#111318] border-t border-white/5 px-3 py-2 pb-safe">
             {/* File previews */}
             {selectedFiles.length > 0 && (
-                <div className="flex gap-2 mb-3 flex-wrap">
+                <div className="flex gap-2 mb-2 flex-wrap">
                     {selectedFiles.map((file, i) => (
                         <div key={i} className="relative group">
                             {file.type.startsWith('image/') ? (
-                                <img
-                                    src={URL.createObjectURL(file)}
-                                    alt=""
-                                    className="w-16 h-16 rounded-xl object-cover border border-white/10"
-                                />
+                                <img src={URL.createObjectURL(file)} alt=""
+                                    className="w-14 h-14 rounded-xl object-cover border border-white/10" />
                             ) : (
-                                <div className="w-16 h-16 rounded-xl bg-white/5 border border-white/10 flex flex-col items-center justify-center p-1">
-                                    <span className="text-2xl">📎</span>
+                                <div className="w-14 h-14 rounded-xl bg-white/5 border border-white/10 flex flex-col items-center justify-center p-1">
+                                    <span className="text-xl">📎</span>
                                     <p className="text-[8px] text-gray-500 truncate w-full text-center">{file.name}</p>
                                 </div>
                             )}
-                            <button
-                                onClick={() => removeFile(i)}
-                                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
+                            <button onClick={() => removeFile(i)}
+                                className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
                                 <X size={10} className="text-white" />
                             </button>
                         </div>
@@ -104,30 +98,22 @@ export default function MessageInput({ onSend, onTyping, conversationId }) {
             )}
 
             <div className="flex items-end gap-2">
-                <button
-                    onClick={() => fileRef.current.click()}
-                    className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-xl transition-all flex-shrink-0"
-                >
-                    <Paperclip size={18} />
+                <button onClick={() => fileRef.current.click()}
+                    className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-indigo-400 active:text-indigo-400 rounded-xl transition-all flex-shrink-0">
+                    <Paperclip size={20} />
                 </button>
-                <input
-                    ref={fileRef}
-                    type="file"
-                    multiple
-                    onChange={handleFileChange}
-                    className="hidden"
-                    accept="image/*,video/*,audio/*,.pdf,.docx,.zip,.txt"
-                />
+                <input ref={fileRef} type="file" multiple onChange={handleFileChange} className="hidden"
+                    accept="image/*,video/*,audio/*,.pdf,.docx,.zip,.txt" />
 
-                <div className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-4 py-2.5 focus-within:border-indigo-500/50 transition-all">
+                <div className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-3 py-2 focus-within:border-indigo-500/50 transition-all min-h-[40px] flex items-end">
                     <textarea
                         ref={textareaRef}
                         value={text}
                         onChange={handleChange}
                         onKeyDown={handleKeyDown}
-                        placeholder="Type a message... (Enter to send)"
+                        placeholder="Type a message..."
                         rows={1}
-                        className="w-full bg-transparent resize-none outline-none text-sm text-white placeholder-gray-600 max-h-32 leading-relaxed"
+                        className="w-full bg-transparent resize-none outline-none text-sm text-white placeholder-gray-600 max-h-24 leading-relaxed"
                         style={{ height: 'auto' }}
                     />
                 </div>
@@ -135,16 +121,16 @@ export default function MessageInput({ onSend, onTyping, conversationId }) {
                 <button
                     onClick={handleSend}
                     disabled={!canSend}
-                    className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all flex-shrink-0 ${
+                    className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all flex-shrink-0 ${
                         canSend
-                            ? 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40'
+                            ? 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/25 active:scale-95'
                             : 'bg-white/5 text-gray-600 cursor-not-allowed'
                     }`}
                 >
                     {uploading ? (
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
-                        <Send size={16} />
+                        <Send size={17} />
                     )}
                 </button>
             </div>
