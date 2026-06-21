@@ -13,7 +13,7 @@ export default function MessageInput({ onSend, onTyping, conversationId }) {
     const handleChange = (e) => {
         setText(e.target.value)
         e.target.style.height = 'auto'
-        e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px'
+        e.target.style.height = Math.min(e.target.scrollHeight, 96) + 'px'
         onTyping(true)
         clearTimeout(typingTimeout.current)
         typingTimeout.current = setTimeout(() => onTyping(false), 1500)
@@ -73,7 +73,10 @@ export default function MessageInput({ onSend, onTyping, conversationId }) {
     const canSend = (text.trim() || selectedFiles.length > 0) && !sending
 
     return (
-        <div className="bg-[#111318] border-t border-white/5 px-3 py-2 pb-safe">
+        <div
+            style={{ flexShrink: 0, background: '#111318', borderTop: '1px solid rgba(255,255,255,0.05)' }}
+            className="px-3 py-2"
+        >
             {/* File previews */}
             {selectedFiles.length > 0 && (
                 <div className="flex gap-2 mb-2 flex-wrap">
@@ -98,14 +101,20 @@ export default function MessageInput({ onSend, onTyping, conversationId }) {
             )}
 
             <div className="flex items-end gap-2">
-                <button onClick={() => fileRef.current.click()}
-                    className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-indigo-400 active:text-indigo-400 rounded-xl transition-all flex-shrink-0">
-                    <Paperclip size={20} />
+                <button
+                    onClick={() => fileRef.current.click()}
+                    className="flex items-center justify-center text-gray-500 hover:text-indigo-400 rounded-xl transition-all flex-shrink-0"
+                    style={{ width: 38, height: 38, WebkitTapHighlightColor: 'transparent' }}
+                >
+                    <Paperclip size={19} />
                 </button>
                 <input ref={fileRef} type="file" multiple onChange={handleFileChange} className="hidden"
                     accept="image/*,video/*,audio/*,.pdf,.docx,.zip,.txt" />
 
-                <div className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-3 py-2 focus-within:border-indigo-500/50 transition-all min-h-[40px] flex items-end">
+                <div
+                    className="flex-1 flex items-end rounded-2xl px-3 py-2"
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', minHeight: 40 }}
+                >
                     <textarea
                         ref={textareaRef}
                         value={text}
@@ -113,24 +122,35 @@ export default function MessageInput({ onSend, onTyping, conversationId }) {
                         onKeyDown={handleKeyDown}
                         placeholder="Type a message..."
                         rows={1}
-                        className="w-full bg-transparent resize-none outline-none text-sm text-white placeholder-gray-600 max-h-24 leading-relaxed"
-                        style={{ height: 'auto' }}
+                        className="w-full bg-transparent resize-none outline-none text-white placeholder-gray-600 leading-relaxed"
+                        style={{
+                            fontSize: 15,
+                            height: 'auto',
+                            maxHeight: 96,
+                            overflowY: 'auto',
+                            WebkitAppearance: 'none',
+                        }}
                     />
                 </div>
 
                 <button
                     onClick={handleSend}
                     disabled={!canSend}
-                    className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all flex-shrink-0 ${
-                        canSend
-                            ? 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/25 active:scale-95'
-                            : 'bg-white/5 text-gray-600 cursor-not-allowed'
-                    }`}
+                    className="flex items-center justify-center rounded-xl transition-all flex-shrink-0"
+                    style={{
+                        width: 38,
+                        height: 38,
+                        background: canSend
+                            ? 'linear-gradient(135deg, #4f46e5, #7c3aed)'
+                            : 'rgba(255,255,255,0.05)',
+                        WebkitTapHighlightColor: 'transparent',
+                        opacity: canSend ? 1 : 0.5,
+                    }}
                 >
                     {uploading ? (
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
-                        <Send size={17} />
+                        <Send size={16} color={canSend ? 'white' : '#6b7280'} />
                     )}
                 </button>
             </div>
