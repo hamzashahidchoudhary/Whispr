@@ -9,81 +9,43 @@ export default function ChatLayout() {
     const { user } = useAuth()
 
     return (
-        <div style={{
-            display: 'flex',
-            height: '100dvh',
-            overflow: 'hidden',
-            background: '#0d0f14',
-        }}>
-            {/*
-              SIDEBAR:
-              - Mobile: show ONLY when no conversation is open
-              - Desktop: always show, fixed width 320px
-            */}
-            <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                width: '320px',
-                minWidth: '320px',
-                height: '100dvh',
-                borderRight: '1px solid rgba(255,255,255,0.05)',
-                // On mobile hide sidebar when conversation is open
-            }} className={id ? 'hidden md:flex' : 'flex w-full md:w-80 md:min-w-80'}>
+        <div className="flex h-screen overflow-hidden bg-[#0d0f14]">
+
+            {/* ── SIDEBAR ──────────────────────────────────────────────
+                Desktop : always visible, 320 px wide
+                Mobile  : visible ONLY when no conversation is open     */}
+            <div className={`
+                flex-col h-full border-r border-white/5
+                w-full md:w-80 md:min-w-[320px] md:max-w-[320px]
+                ${id ? 'hidden md:flex' : 'flex'}
+            `}>
                 <Sidebar activeId={id} />
             </div>
 
-            {/*
-              MAIN AREA:
-              - Mobile: show ONLY when conversation is open (full screen)
-              - Desktop: always show, takes remaining space
-            */}
-            <div style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                height: '100dvh',
-                overflow: 'hidden',
-                minWidth: 0,
-            }} className={id ? 'flex' : 'hidden md:flex'}>
+            {/* ── MAIN PANEL ───────────────────────────────────────────
+                Desktop : always visible, fills remaining space
+                Mobile  : visible ONLY when a conversation is open      */}
+            <div className={`
+                flex-col flex-1 h-full overflow-hidden min-w-0
+                ${id ? 'flex' : 'hidden md:flex'}
+            `}>
                 {id ? (
                     <ConversationView />
                 ) : (
-                    // Desktop empty state when no conversation selected
-                    <div style={{
-                        flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        background: '#0d0f14',
-                    }}>
-                        <div style={{ textAlign: 'center', padding: '0 24px' }}>
-                            <div style={{
-                                width: 80, height: 80,
-                                background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
-                                borderRadius: 24,
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                margin: '0 auto 24px',
-                                boxShadow: '0 20px 40px rgba(79,70,229,0.3)',
-                            }}>
-                                <MessageCircle size={36} color="white" />
+                    <div className="flex-1 flex items-center justify-center h-full">
+                        <div className="text-center px-6">
+                            <div className="w-20 h-20 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-indigo-500/30">
+                                <MessageCircle size={36} className="text-white" />
                             </div>
-                            <h2 style={{ color: 'white', fontSize: 20, fontWeight: 700, margin: '0 0 8px' }}>
-                                Welcome to Whispr, {user?.name?.split(' ')[0]}!
+                            <h2 className="text-xl font-bold text-white mb-2">
+                                Welcome, {user?.name?.split(' ')[0]}!
                             </h2>
-                            <p style={{ color: '#6b7280', fontSize: 14, margin: 0, maxWidth: 260 }}>
-                                Select a conversation from the sidebar or search for someone to start chatting.
+                            <p className="text-gray-500 text-sm max-w-[260px] mx-auto">
+                                Select a conversation or search for someone to start chatting.
                             </p>
-                            <div style={{
-                                display: 'flex', gap: 12, marginTop: 24,
-                                justifyContent: 'center',
-                            }}>
+                            <div className="flex gap-3 mt-6 justify-center">
                                 {['💬 Chat', '👥 Groups', '📎 Files'].map(item => (
-                                    <div key={item} style={{
-                                        background: 'rgba(255,255,255,0.05)',
-                                        border: '1px solid rgba(255,255,255,0.05)',
-                                        borderRadius: 12, padding: '8px 12px',
-                                        fontSize: 12, color: '#6b7280',
-                                    }}>
+                                    <div key={item} className="bg-white/5 border border-white/5 rounded-xl px-3 py-2 text-xs text-gray-500">
                                         {item}
                                     </div>
                                 ))}
