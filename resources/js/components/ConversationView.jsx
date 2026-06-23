@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useConversation } from '../hooks/useConversation'
 import { useAuth } from '../contexts/AuthContext'
@@ -11,10 +11,9 @@ export default function ConversationView() {
     const { id } = useParams()
     const { user } = useAuth()
     const navigate = useNavigate()
-    const { messages, loading, typingUsers, sendMessage, sendTyping } = useConversation(id)
+    const { messages, loading, typingUsers, sendMessage, sendTyping, setMessages } = useConversation(id)
     const [conversation, setConversation] = useState(null)
     const bottomRef = useRef(null)
-    const messagesRef = useRef(null)
 
     useEffect(() => {
         if (id) {
@@ -26,6 +25,12 @@ export default function ConversationView() {
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages])
+
+    // Refresh messages after a reaction
+    const handleReact = useCallback(() => {
+        api.get(`/conversations/${id}/messages`)
+            .then(res => setMessages(res.data.data.reverse()))
+    }, [id, setMessages])
 
     const other = conversation?.members?.find(m => m.id !== user?.id)
     const title = conversation?.type === 'group'
@@ -51,16 +56,10 @@ export default function ConversationView() {
             className="flex flex-col bg-[#0d0f14]"
             style={{ height: '100dvh', maxHeight: '100dvh' }}
         >
-            {/* Header - fixed at top */}
-            <div
-                className="flex items-center gap-3 px-3 py-3 border-b border-white/5 bg-[#111318]"
-                style={{ flexShrink: 0 }}
-            >
-                <button
-                    onClick={() => navigate('/chat')}
-                    className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-white rounded-xl transition-all flex-shrink-0"
-                    style={{ WebkitTapHighlightColor: 'transparent' }}
-                >
+            {/* Header */}
+            <div className="flex items-center gap-3 px-3 py-3 border-b border-white/5 bg-[#111318]" style={{ flexShrink: 0 }}>
+                <button onClick={() => navigate('/chat')}
+                    className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-white rounded-xl transition-all flex-shrink-0">
                     <ArrowLeft size={20} />
                 </button>
 
@@ -75,9 +74,7 @@ export default function ConversationView() {
 
                 <div className="flex-1 min-w-0">
                     <p className="text-white font-semibold text-sm truncate">{title}</p>
-                    <p className="text-xs text-gray-600">
-                        {other?.is_online ? '🟢 Online' : 'Offline'}
-                    </p>
+                    <p className="text-xs text-gray-600">{other?.is_online ? '🟢 Online' : 'Offline'}</p>
                 </div>
 
                 <div className="flex items-center gap-1 flex-shrink-0">
@@ -90,12 +87,8 @@ export default function ConversationView() {
                 </div>
             </div>
 
-            {/* Messages - scrollable middle section */}
-            <div
-                ref={messagesRef}
-                className="overflow-y-auto overscroll-contain py-3"
-                style={{ flex: '1 1 0', minHeight: 0 }}
-            >
+            {/* Messages */}
+            <div className="overflow-y-auto overscroll-contain py-3" style={{ flex: '1 1 0', minHeight: 0 }}>
                 {messages.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-full text-center px-8 py-12">
                         <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center mb-3">
@@ -127,7 +120,10 @@ export default function ConversationView() {
                                     <div className="flex-1 h-px bg-white/5" />
                                 </div>
                             )}
-                            <MessageBubble message={msg} />
+                            <MessageBubble
+                                message={msg}
+                                onReact={handleReact}
+                            />
                         </div>
                     )
                 })}
@@ -136,10 +132,8 @@ export default function ConversationView() {
                     <div className="flex items-center gap-2 px-4 py-2">
                         <div className="flex items-center gap-1 bg-[#1e2130] rounded-2xl rounded-bl-sm px-4 py-3 border border-white/5">
                             {[0, 1, 2].map(i => (
-                                <div key={i}
-                                    className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce"
-                                    style={{ animationDelay: `${i * 0.15}s` }}
-                                />
+                                <div key={i} className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce"
+                                    style={{ animationDelay: `${i * 0.15}s` }} />
                             ))}
                         </div>
                     </div>
@@ -148,13 +142,9 @@ export default function ConversationView() {
                 <div ref={bottomRef} />
             </div>
 
-            {/* Input - fixed at bottom */}
+            {/* Input */}
             <div style={{ flexShrink: 0 }}>
-                <MessageInput
-                    onSend={sendMessage}
-                    onTyping={sendTyping}
-                    conversationId={id}
-                />
+                <MessageInput onSend={sendMessage} onTyping={sendTyping} conversationId={id} />
             </div>
         </div>
     )
