@@ -6,56 +6,50 @@ export function useConversation(conversationId) {
     const [loading, setLoading] = useState(true)
     const [typingUsers, setTypingUsers] = useState([])
     const pollingRef = useRef(null)
-    const messagesRef = useRef([])
     const sendingRef = useRef(false)
 
-    // Keep messagesRef in sync with messages state
-    useEffect(() => {
-        messagesRef.current = messages
-    }, [messages])
+    const fetchMessages = useCallback(() => {
+        return api.get(`/conversations/${conversationId}/messages`)
+            .then(res => {
+                const newMsgs = res.data.data.reverse()
+                setMessages(prev => {
+                    // Build a map of new messages by id
+                    const newMap = {}
+                    newMsgs.forEach(m => { newMap[m.id] = m })
 
-    const mergeMessages = useCallback((newMsgs) => {
-        setMessages(prev => {
-            const existingIds = new Set(prev.map(m => m.id))
-            const toAdd = newMsgs.filter(m => !existingIds.has(m.id))
-            if (toAdd.length === 0) return prev
-            return [...prev, ...toAdd].sort((a, b) =>
-                new Date(a.created_at) - new Date(b.created_at)
-            )
-        })
-    }, [])
+                    // Update existing messages (reactions, edits etc)
+                    // and add any new ones
+                    const prevIds = new Set(prev.map(m => m.id))
+                    const updated = prev.map(m => newMap[m.id] ? newMap[m.id] : m)
+                    const added = newMsgs.filter(m => !prevIds.has(m.id))
+
+                    if (added.length === 0 && JSON.stringify(updated.map(m => m.reactions)) === JSON.stringify(prev.map(m => m.reactions))) {
+                        return prev // No changes, avoid re-render
+                    }
+
+                    return [...updated, ...added]
+                })
+                return newMsgs
+            })
+    }, [conversationId])
 
     useEffect(() => {
         if (!conversationId) return
 
         setLoading(true)
         setMessages([])
-        messagesRef.current = []
 
-        // Load initial messages
-        api.get(`/conversations/${conversationId}/messages`)
-            .then(res => {
-                const msgs = res.data.data.reverse()
-                setMessages(msgs)
-                messagesRef.current = msgs
-            })
-            .finally(() => setLoading(false))
+        // Initial load
+        fetchMessages().finally(() => setLoading(false))
 
-        // Poll every 2 seconds - only add NEW messages, never replace
+        // Poll every 2 seconds - updates messages AND reactions
         pollingRef.current = setInterval(() => {
             if (sendingRef.current) return
-            api.get(`/conversations/${conversationId}/messages`)
-                .then(res => {
-                    const newMsgs = res.data.data.reverse()
-                    mergeMessages(newMsgs)
-                })
-                .catch(() => {})
+            fetchMessages().catch(() => {})
         }, 2000)
 
-        return () => {
-            clearInterval(pollingRef.current)
-        }
-    }, [conversationId, mergeMessages])
+        return () => clearInterval(pollingRef.current)
+    }, [conversationId, fetchMessages])
 
     const sendMessage = async (body, formData = null) => {
         sendingRef.current = true
@@ -81,10 +75,7 @@ export function useConversation(conversationId) {
                 return [...prev, data]
             })
         } finally {
-            // Allow polling again after short delay
-            setTimeout(() => {
-                sendingRef.current = false
-            }, 1000)
+            setTimeout(() => { sendingRef.current = false }, 1000)
         }
         return data
     }
