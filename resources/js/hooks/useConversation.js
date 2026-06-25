@@ -8,23 +8,33 @@ export function useConversation(conversationId) {
     const pollingRef = useRef(null)
     const sendingRef = useRef(false)
 
-    const fetchMessages = useCallback(() => {
+    const fetchAndUpdate = useCallback(() => {
         return api.get(`/conversations/${conversationId}/messages`)
             .then(res => {
                 const newMsgs = res.data.data.reverse()
                 setMessages(prev => {
-                    // Build a map of new messages by id
                     const newMap = {}
                     newMsgs.forEach(m => { newMap[m.id] = m })
 
-                    // Update existing messages (reactions, edits etc)
-                    // and add any new ones
                     const prevIds = new Set(prev.map(m => m.id))
-                    const updated = prev.map(m => newMap[m.id] ? newMap[m.id] : m)
+
+                    // Update ALL existing messages (body, reactions, is_edited, is_deleted)
+                    const updated = prev.map(m => newMap[m.id] ? { ...newMap[m.id] } : m)
+
+                    // Add any brand new messages
                     const added = newMsgs.filter(m => !prevIds.has(m.id))
 
-                    if (added.length === 0 && JSON.stringify(updated.map(m => m.reactions)) === JSON.stringify(prev.map(m => m.reactions))) {
-                        return prev // No changes, avoid re-render
+                    if (added.length === 0) {
+                        // Check if anything actually changed
+                        const changed = prev.some(m => {
+                            const n = newMap[m.id]
+                            if (!n) return false
+                            return n.body !== m.body ||
+                                n.is_edited !== m.is_edited ||
+                                n.is_deleted !== m.is_deleted ||
+                                JSON.stringify(n.reactions) !== JSON.stringify(m.reactions)
+                        })
+                        if (!changed) return prev
                     }
 
                     return [...updated, ...added]
@@ -39,17 +49,15 @@ export function useConversation(conversationId) {
         setLoading(true)
         setMessages([])
 
-        // Initial load
-        fetchMessages().finally(() => setLoading(false))
+        fetchAndUpdate().finally(() => setLoading(false))
 
-        // Poll every 2 seconds - updates messages AND reactions
         pollingRef.current = setInterval(() => {
             if (sendingRef.current) return
-            fetchMessages().catch(() => {})
+            fetchAndUpdate().catch(() => {})
         }, 2000)
 
         return () => clearInterval(pollingRef.current)
-    }, [conversationId, fetchMessages])
+    }, [conversationId, fetchAndUpdate])
 
     const sendMessage = async (body, formData = null) => {
         sendingRef.current = true
@@ -69,7 +77,6 @@ export function useConversation(conversationId) {
                 })
                 data = res.data
             }
-            // Add own message immediately
             setMessages(prev => {
                 if (prev.find(m => m.id === data.id)) return prev
                 return [...prev, data]
