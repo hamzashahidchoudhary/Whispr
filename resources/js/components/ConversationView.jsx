@@ -26,8 +26,8 @@ export default function ConversationView() {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages])
 
-    // Refresh messages after a reaction
-    const handleReact = useCallback(() => {
+    // Refresh messages after react / edit / delete
+    const handleUpdate = useCallback(() => {
         api.get(`/conversations/${id}/messages`)
             .then(res => setMessages(res.data.data.reverse()))
     }, [id, setMessages])
@@ -57,7 +57,10 @@ export default function ConversationView() {
             style={{ height: '100dvh', maxHeight: '100dvh' }}
         >
             {/* Header */}
-            <div className="flex items-center gap-3 px-3 py-3 border-b border-white/5 bg-[#111318]" style={{ flexShrink: 0 }}>
+            <div
+                className="flex items-center gap-3 px-3 py-3 border-b border-white/5 bg-[#111318]"
+                style={{ flexShrink: 0 }}
+            >
                 <button onClick={() => navigate('/chat')}
                     className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-white rounded-xl transition-all flex-shrink-0">
                     <ArrowLeft size={20} />
@@ -88,7 +91,10 @@ export default function ConversationView() {
             </div>
 
             {/* Messages */}
-            <div className="overflow-y-auto overscroll-contain py-3" style={{ flex: '1 1 0', minHeight: 0 }}>
+            <div
+                className="overflow-y-auto overscroll-contain py-3"
+                style={{ flex: '1 1 0', minHeight: 0 }}
+            >
                 {messages.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-full text-center px-8 py-12">
                         <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center mb-3">
@@ -122,7 +128,8 @@ export default function ConversationView() {
                             )}
                             <MessageBubble
                                 message={msg}
-                                onReact={handleReact}
+                                onReact={handleUpdate}
+                                onUpdate={handleUpdate}
                             />
                         </div>
                     )
