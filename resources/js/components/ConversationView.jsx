@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import MessageBubble from './MessageBubble'
 import MessageInput from './MessageInput'
 import api from '../api/axios'
-import { Phone, MoreVertical, ArrowLeft } from 'lucide-react'
+import { Phone, MoreVertical, ArrowLeft, X } from 'lucide-react'
 
 export default function ConversationView() {
     const { id } = useParams()
@@ -13,6 +13,7 @@ export default function ConversationView() {
     const navigate = useNavigate()
     const { messages, loading, typingUsers, sendMessage, sendTyping, setMessages } = useConversation(id)
     const [conversation, setConversation] = useState(null)
+    const [replyTo, setReplyTo] = useState(null)
     const bottomRef = useRef(null)
 
     useEffect(() => {
@@ -26,16 +27,34 @@ export default function ConversationView() {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages])
 
-    // Refresh messages after react / edit / delete
     const handleUpdate = useCallback(() => {
         api.get(`/conversations/${id}/messages`)
             .then(res => setMessages(res.data.data.reverse()))
     }, [id, setMessages])
 
+    const handleReply = (message) => {
+        setReplyTo(message)
+    }
+
+    const handleSendWithReply = async (body, formData = null) => {
+        if (formData) {
+            if (replyTo) formData.append('reply_to_id', replyTo.id)
+            await sendMessage(null, formData)
+        } else {
+            const res = await api.post(`/conversations/${id}/messages`, {
+                body,
+                reply_to_id: replyTo?.id || null,
+            })
+            setMessages(prev => {
+                if (prev.find(m => m.id === res.data.id)) return prev
+                return [...prev, res.data]
+            })
+        }
+        setReplyTo(null)
+    }
+
     const other = conversation?.members?.find(m => m.id !== user?.id)
-    const title = conversation?.type === 'group'
-        ? conversation?.group?.name
-        : other?.name
+    const title = conversation?.type === 'group' ? conversation?.group?.name : other?.name
     const avatar = conversation?.type === 'group'
         ? `https://ui-avatars.com/api/?name=${encodeURIComponent(title || 'G')}&background=6366f1&color=fff`
         : other?.avatar_url
@@ -52,20 +71,13 @@ export default function ConversationView() {
     }
 
     return (
-        <div
-            className="flex flex-col bg-[#0d0f14]"
-            style={{ height: '100dvh', maxHeight: '100dvh' }}
-        >
+        <div className="flex flex-col bg-[#0d0f14]" style={{ height: '100dvh', maxHeight: '100dvh' }}>
             {/* Header */}
-            <div
-                className="flex items-center gap-3 px-3 py-3 border-b border-white/5 bg-[#111318]"
-                style={{ flexShrink: 0 }}
-            >
+            <div className="flex items-center gap-3 px-3 py-3 border-b border-white/5 bg-[#111318]" style={{ flexShrink: 0 }}>
                 <button onClick={() => navigate('/chat')}
                     className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-white rounded-xl transition-all flex-shrink-0">
                     <ArrowLeft size={20} />
                 </button>
-
                 {avatar && (
                     <div className="relative flex-shrink-0">
                         <img src={avatar} alt="" className="w-9 h-9 rounded-full object-cover" />
@@ -74,12 +86,10 @@ export default function ConversationView() {
                         )}
                     </div>
                 )}
-
                 <div className="flex-1 min-w-0">
                     <p className="text-white font-semibold text-sm truncate">{title}</p>
                     <p className="text-xs text-gray-600">{other?.is_online ? '🟢 Online' : 'Offline'}</p>
                 </div>
-
                 <div className="flex items-center gap-1 flex-shrink-0">
                     <button className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-white rounded-xl">
                         <Phone size={17} />
@@ -91,17 +101,11 @@ export default function ConversationView() {
             </div>
 
             {/* Messages */}
-            <div
-                className="overflow-y-auto overscroll-contain py-3"
-                style={{ flex: '1 1 0', minHeight: 0 }}
-            >
+            <div className="overflow-y-auto overscroll-contain py-3" style={{ flex: '1 1 0', minHeight: 0 }}>
                 {messages.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-full text-center px-8 py-12">
                         <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center mb-3">
-                            {avatar
-                                ? <img src={avatar} alt="" className="w-9 h-9 rounded-full object-cover" />
-                                : <span className="text-2xl">👋</span>
-                            }
+                            {avatar ? <img src={avatar} alt="" className="w-9 h-9 rounded-full object-cover" /> : <span className="text-2xl">👋</span>}
                         </div>
                         <p className="text-white font-medium text-sm mb-1">Start the conversation</p>
                         <p className="text-gray-600 text-xs">Say hi to {title}!</p>
@@ -110,18 +114,14 @@ export default function ConversationView() {
 
                 {messages.map((msg, i) => {
                     const prevMsg = messages[i - 1]
-                    const showDate = !prevMsg ||
-                        new Date(msg.created_at).toDateString() !== new Date(prevMsg.created_at).toDateString()
-
+                    const showDate = !prevMsg || new Date(msg.created_at).toDateString() !== new Date(prevMsg.created_at).toDateString()
                     return (
                         <div key={msg.id}>
                             {showDate && (
                                 <div className="flex items-center gap-3 px-4 py-2 my-1">
                                     <div className="flex-1 h-px bg-white/5" />
                                     <span className="text-[10px] text-gray-600 bg-white/5 px-2 py-1 rounded-full whitespace-nowrap">
-                                        {new Date(msg.created_at).toLocaleDateString('en-US', {
-                                            weekday: 'short', month: 'short', day: 'numeric'
-                                        })}
+                                        {new Date(msg.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                                     </span>
                                     <div className="flex-1 h-px bg-white/5" />
                                 </div>
@@ -130,6 +130,7 @@ export default function ConversationView() {
                                 message={msg}
                                 onReact={handleUpdate}
                                 onUpdate={handleUpdate}
+                                onReply={handleReply}
                             />
                         </div>
                     )
@@ -145,13 +146,30 @@ export default function ConversationView() {
                         </div>
                     </div>
                 )}
-
                 <div ref={bottomRef} />
             </div>
 
+            {/* Reply preview bar */}
+            {replyTo && (
+                <div className="flex items-center gap-3 px-4 py-2 bg-[#111318] border-t border-white/5" style={{ flexShrink: 0 }}>
+                    <div className="flex-1 border-l-2 border-indigo-500 pl-3 min-w-0">
+                        <p className="text-xs text-indigo-400 font-medium">↩ Replying to {replyTo.sender?.name}</p>
+                        <p className="text-xs text-gray-500 truncate">{replyTo.body || '📎 Attachment'}</p>
+                    </div>
+                    <button onClick={() => setReplyTo(null)}
+                        className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/5 rounded-lg flex-shrink-0">
+                        <X size={16} />
+                    </button>
+                </div>
+            )}
+
             {/* Input */}
             <div style={{ flexShrink: 0 }}>
-                <MessageInput onSend={sendMessage} onTyping={sendTyping} conversationId={id} />
+                <MessageInput
+                    onSend={handleSendWithReply}
+                    onTyping={sendTyping}
+                    conversationId={id}
+                />
             </div>
         </div>
     )

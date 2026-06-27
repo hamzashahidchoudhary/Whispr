@@ -1,16 +1,15 @@
 import { useState, useRef, useEffect } from 'react'
 import { format } from 'date-fns'
 import { useAuth } from '../contexts/AuthContext'
-import { Check, CheckCheck, Trash2, Pencil, X, Send } from 'lucide-react'
+import { Check, CheckCheck, Trash2, Pencil, X, Send, Reply } from 'lucide-react'
 import api from '../api/axios'
 
 const EMOJIS = ['❤️', '👍', '😂', '😢', '🔥', '😮']
 
-export default function MessageBubble({ message, onReact, onUpdate }) {
+export default function MessageBubble({ message, onReact, onUpdate, onReply }) {
     const { user } = useAuth()
     const isOwn = message.sender_id === user?.id
     const [showMenu, setShowMenu] = useState(false)
-    const [showPicker, setShowPicker] = useState(false)
     const [editing, setEditing] = useState(false)
     const [editText, setEditText] = useState(message.body || '')
     const [saving, setSaving] = useState(false)
@@ -25,12 +24,10 @@ export default function MessageBubble({ message, onReact, onUpdate }) {
         }
     }, [editing])
 
-    // Close menu when clicking outside
     useEffect(() => {
         const handler = (e) => {
             if (menuRef.current && !menuRef.current.contains(e.target)) {
                 setShowMenu(false)
-                setShowPicker(false)
             }
         }
         document.addEventListener('mousedown', handler)
@@ -41,7 +38,6 @@ export default function MessageBubble({ message, onReact, onUpdate }) {
         }
     }, [])
 
-    // Long press for mobile
     const handleTouchStart = () => {
         longPressRef.current = setTimeout(() => setShowMenu(true), 500)
     }
@@ -51,13 +47,10 @@ export default function MessageBubble({ message, onReact, onUpdate }) {
 
     const handleReact = async (emoji) => {
         setShowMenu(false)
-        setShowPicker(false)
         try {
             await api.post(`/messages/${message.id}/react`, { emoji })
             if (onReact) onReact()
-        } catch (err) {
-            console.error('React failed', err)
-        }
+        } catch (err) { console.error('React failed', err) }
     }
 
     const handleDelete = async () => {
@@ -66,15 +59,18 @@ export default function MessageBubble({ message, onReact, onUpdate }) {
         try {
             await api.delete(`/messages/${message.id}`)
             if (onUpdate) onUpdate()
-        } catch (err) {
-            console.error('Delete failed', err)
-        }
+        } catch (err) { console.error('Delete failed', err) }
     }
 
     const handleEdit = () => {
         setShowMenu(false)
         setEditText(message.body || '')
         setEditing(true)
+    }
+
+    const handleReply = () => {
+        setShowMenu(false)
+        if (onReply) onReply(message)
     }
 
     const saveEdit = async () => {
@@ -84,11 +80,8 @@ export default function MessageBubble({ message, onReact, onUpdate }) {
             await api.put(`/messages/${message.id}`, { body: editText.trim() })
             setEditing(false)
             if (onUpdate) onUpdate()
-        } catch (err) {
-            console.error('Edit failed', err)
-        } finally {
-            setSaving(false)
-        }
+        } catch (err) { console.error('Edit failed', err) }
+        finally { setSaving(false) }
     }
 
     const cancelEdit = () => {
@@ -96,7 +89,6 @@ export default function MessageBubble({ message, onReact, onUpdate }) {
         setEditText(message.body || '')
     }
 
-    // Group reactions
     const groupedReactions = (message.reactions || []).reduce((acc, r) => {
         if (!acc[r.emoji]) acc[r.emoji] = { count: 0, users: [], hasOwn: false }
         acc[r.emoji].count++
@@ -132,71 +124,64 @@ export default function MessageBubble({ message, onReact, onUpdate }) {
 
                 {/* Reply preview */}
                 {message.reply_to && (
-                    <div className={`mb-1 px-3 py-1.5 rounded-xl text-xs border-l-2 border-indigo-400 max-w-full ${
+                    <div className={`mb-1 px-3 py-1.5 rounded-xl text-xs border-l-2 border-indigo-400 max-w-full cursor-pointer hover:opacity-80 ${
                         isOwn ? 'bg-indigo-600/20' : 'bg-white/5'
                     }`}>
-                        <p className="text-indigo-400 font-medium mb-0.5 truncate">{message.reply_to.sender?.name}</p>
-                        <p className="text-gray-400 truncate">{message.reply_to.body}</p>
+                        <p className="text-indigo-400 font-medium mb-0.5 truncate">
+                            ↩ {message.reply_to.sender?.name}
+                        </p>
+                        <p className="text-gray-400 truncate">{message.reply_to.body || '📎 Attachment'}</p>
                     </div>
                 )}
 
                 {/* Context menu */}
                 {showMenu && (
-                    <div className={`absolute z-50 bottom-full mb-2 bg-[#1e2130] border border-white/10 rounded-2xl shadow-xl overflow-hidden min-w-[160px] ${
+                    <div className={`absolute z-50 bottom-full mb-2 bg-[#1e2130] border border-white/10 rounded-2xl shadow-xl overflow-hidden min-w-[180px] ${
                         isOwn ? 'right-0' : 'left-0'
                     }`}>
-                        {/* Emoji reactions row */}
-                        {showPicker ? (
-                            <div className="flex gap-1 p-2">
-                                {EMOJIS.map(emoji => (
-                                    <button key={emoji} onClick={() => handleReact(emoji)}
-                                        className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-white/10 active:bg-white/20 text-xl transition-all hover:scale-125"
-                                        style={{ WebkitTapHighlightColor: 'transparent' }}>
-                                        {emoji}
-                                    </button>
-                                ))}
-                            </div>
-                        ) : (
-                            <>
-                                {/* Quick reactions */}
-                                <div className="flex gap-1 p-2 border-b border-white/5">
-                                    {EMOJIS.map(emoji => (
-                                        <button key={emoji} onClick={() => handleReact(emoji)}
-                                            className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/10 active:bg-white/20 text-lg transition-all hover:scale-125"
-                                            style={{ WebkitTapHighlightColor: 'transparent' }}>
-                                            {emoji}
-                                        </button>
-                                    ))}
-                                </div>
+                        {/* Quick reactions */}
+                        <div className="flex gap-1 p-2 border-b border-white/5">
+                            {EMOJIS.map(emoji => (
+                                <button key={emoji} onClick={() => handleReact(emoji)}
+                                    className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/10 active:bg-white/20 text-lg transition-all hover:scale-125"
+                                    style={{ WebkitTapHighlightColor: 'transparent' }}>
+                                    {emoji}
+                                </button>
+                            ))}
+                        </div>
 
-                                {/* Actions */}
-                                {isOwn && (
-                                    <>
-                                        <button onClick={handleEdit}
-                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 active:bg-white/10 transition-colors">
-                                            <Pencil size={14} className="text-gray-500" />
-                                            Edit message
-                                        </button>
-                                        <button onClick={handleDelete}
-                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 active:bg-red-500/20 transition-colors">
-                                            <Trash2 size={14} />
-                                            Delete message
-                                        </button>
-                                    </>
-                                )}
-                                {!isOwn && (
-                                    <button onClick={() => setShowMenu(false)}
-                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-500 hover:bg-white/5 transition-colors">
-                                        <X size={14} />
-                                        Close
-                                    </button>
-                                )}
+                        {/* Reply - available for all messages */}
+                        <button onClick={handleReply}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 active:bg-white/10 transition-colors">
+                            <Reply size={14} className="text-gray-500" />
+                            Reply
+                        </button>
+
+                        {/* Edit & Delete - only for own messages */}
+                        {isOwn && (
+                            <>
+                                <button onClick={handleEdit}
+                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 active:bg-white/10 transition-colors">
+                                    <Pencil size={14} className="text-gray-500" />
+                                    Edit message
+                                </button>
+                                <button onClick={handleDelete}
+                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 active:bg-red-500/20 transition-colors">
+                                    <Trash2 size={14} />
+                                    Delete message
+                                </button>
                             </>
                         )}
+
+                        <button onClick={() => setShowMenu(false)}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-white/5 transition-colors border-t border-white/5">
+                            <X size={14} />
+                            Close
+                        </button>
                     </div>
                 )}
 
-                {/* Message bubble */}
+                {/* Editing state */}
                 {editing ? (
                     <div className="flex flex-col gap-2 w-full">
                         <textarea
@@ -212,11 +197,11 @@ export default function MessageBubble({ message, onReact, onUpdate }) {
                         />
                         <div className="flex gap-2 justify-end">
                             <button onClick={cancelEdit}
-                                className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-400 hover:text-white bg-white/5 rounded-lg transition-colors">
+                                className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-400 hover:text-white bg-white/5 rounded-lg">
                                 <X size={12} /> Cancel
                             </button>
                             <button onClick={saveEdit} disabled={saving}
-                                className="flex items-center gap-1 px-3 py-1.5 text-xs text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50">
+                                className="flex items-center gap-1 px-3 py-1.5 text-xs text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50">
                                 <Send size={12} /> {saving ? 'Saving...' : 'Save'}
                             </button>
                         </div>
@@ -261,7 +246,7 @@ export default function MessageBubble({ message, onReact, onUpdate }) {
                     </div>
                 )}
 
-                {/* Timestamp & status */}
+                {/* Timestamp */}
                 {!editing && (
                     <div className={`flex items-center gap-1 mt-0.5 px-1 ${isOwn ? 'flex-row-reverse' : ''}`}>
                         <span className="text-[10px] text-gray-600">
@@ -276,7 +261,7 @@ export default function MessageBubble({ message, onReact, onUpdate }) {
                     </div>
                 )}
 
-                {/* Reactions display */}
+                {/* Reactions */}
                 {Object.keys(groupedReactions).length > 0 && (
                     <div className="flex gap-1 flex-wrap mt-1 px-1">
                         {Object.entries(groupedReactions).map(([emoji, data]) => (
