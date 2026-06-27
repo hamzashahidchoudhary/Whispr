@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Search, LogOut, Settings, Users, MessageCircle, Plus, X } from 'lucide-react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Search, LogOut, Settings, Users, MessageCircle, Plus, X, Bell } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { formatDistanceToNow } from 'date-fns'
 import api from '../api/axios'
+import { useNotifications, requestNotificationPermission } from '../hooks/useNotifications'
 
 export default function Sidebar({ activeId }) {
     const { user, logout } = useAuth()
@@ -12,17 +13,20 @@ export default function Sidebar({ activeId }) {
     const [search, setSearch] = useState('')
     const [searchResults, setSearchResults] = useState([])
     const [searching, setSearching] = useState(false)
+    const [notifEnabled, setNotifEnabled] = useState(Notification?.permission === 'granted')
 
-    const loadConversations = () => {
-    api.get('/conversations').then(res => setConversations(res.data.data || []))
-}
+    // Use notifications hook
+    useNotifications(conversations, activeId)
 
-useEffect(() => {
-    loadConversations()
-    // Refresh sidebar every 3 seconds to show latest messages and clear badges
-    const interval = setInterval(loadConversations, 3000)
-    return () => clearInterval(interval)
-}, [])
+    // Load and refresh conversations
+    useEffect(() => {
+        const load = () => {
+            api.get('/conversations').then(res => setConversations(res.data.data || []))
+        }
+        load()
+        const interval = setInterval(load, 3000)
+        return () => clearInterval(interval)
+    }, [])
 
     useEffect(() => {
         if (!search.trim()) { setSearchResults([]); setSearching(false); return }
@@ -47,10 +51,15 @@ useEffect(() => {
         navigate('/login')
     }
 
+    const enableNotifications = async () => {
+        const granted = await requestNotificationPermission()
+        setNotifEnabled(granted)
+    }
+
     return (
         <aside className="w-full flex flex-col h-full bg-[#111318] border-r border-white/5">
             {/* Header */}
-            <div className="px-4 pt-safe pt-4 pb-3 border-b border-white/5">
+            <div className="px-4 pt-4 pb-3 border-b border-white/5">
                 <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                         <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
@@ -59,13 +68,24 @@ useEffect(() => {
                         <span className="text-white font-bold text-lg">Whispr</span>
                     </div>
                     <div className="flex items-center gap-1">
+                        {/* Notification bell */}
+                        <button
+                            onClick={enableNotifications}
+                            title={notifEnabled ? 'Notifications on' : 'Enable notifications'}
+                            className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
+                                notifEnabled
+                                    ? 'text-indigo-400 bg-indigo-500/10'
+                                    : 'text-gray-500 hover:text-white hover:bg-white/5'
+                            }`}>
+                            <Bell size={16} />
+                        </button>
                         <Link to="/chat/settings"
                             className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/5 rounded-xl transition-all">
-                            <Settings size={18} />
+                            <Settings size={16} />
                         </Link>
                         <button onClick={handleLogout}
                             className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all">
-                            <LogOut size={18} />
+                            <LogOut size={16} />
                         </button>
                     </div>
                 </div>
@@ -132,8 +152,23 @@ useEffect(() => {
                 </div>
             )}
 
+            {/* Notification permission banner */}
+            {!notifEnabled && Notification?.permission !== 'denied' && (
+                <div className="mx-3 mt-3 p-3 bg-indigo-600/10 border border-indigo-500/20 rounded-xl flex items-center gap-3">
+                    <Bell size={16} className="text-indigo-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                        <p className="text-xs text-indigo-300 font-medium">Enable notifications</p>
+                        <p className="text-[10px] text-gray-500">Get notified for new messages</p>
+                    </div>
+                    <button onClick={enableNotifications}
+                        className="text-xs text-indigo-400 font-medium hover:text-indigo-300 flex-shrink-0">
+                        Enable
+                    </button>
+                </div>
+            )}
+
             {/* Conversations List */}
-            <div className="flex-1 overflow-y-auto overscroll-contain">
+            <div className="flex-1 overflow-y-auto overscroll-contain mt-1">
                 {!search && conversations.length === 0 && (
                     <div className="text-center py-16 px-6">
                         <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -190,7 +225,7 @@ function ConversationItem({ conversation, active, currentUser }) {
                     )}
                 </div>
                 <div className="flex items-center justify-between">
-                    <p className="text-xs text-gray-500 truncate pr-2">
+                    <p className={`text-xs truncate pr-2 ${unread > 0 && !active ? 'text-gray-300 font-medium' : 'text-gray-500'}`}>
                         {last?.is_deleted ? '🚫 Deleted' : last?.body || 'No messages yet'}
                     </p>
                     {unread > 0 && (
