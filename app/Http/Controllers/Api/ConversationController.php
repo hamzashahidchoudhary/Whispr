@@ -20,7 +20,7 @@ class ConversationController extends Controller
             $q->where('sender_id', '!=', $request->user()->id)
               ->whereNull('read_at');
         }])
-        ->latest()
+        ->latest('updated_at')
         ->paginate(30);
 
         $conversations->getCollection()->transform(function ($conv) {
@@ -28,6 +28,9 @@ class ConversationController extends Controller
                 $member->avatar_url = $member->avatarUrl();
                 return $member;
             });
+            if ($conv->group) {
+                $conv->group->image_url = $conv->group->imageUrl();
+            }
             return $conv;
         });
 
@@ -36,9 +39,7 @@ class ConversationController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'user_id' => 'required|exists:users,id',
-        ]);
+        $request->validate(['user_id' => 'required|exists:users,id']);
 
         $me      = $request->user()->id;
         $otherId = $request->user_id;
@@ -64,15 +65,21 @@ class ConversationController extends Controller
 
     public function show(Request $request, Conversation $conversation)
     {
-        $isMember = $conversation->members()
-            ->where('user_id', $request->user()->id)
-            ->exists();
-
+        $isMember = $conversation->members()->where('user_id', $request->user()->id)->exists();
         if (!$isMember) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        return response()->json($conversation->load(['members', 'group', 'lastMessage.sender']));
+        $conversation->load(['members', 'group', 'lastMessage.sender']);
+        $conversation->members->transform(function ($member) {
+            $member->avatar_url = $member->avatarUrl();
+            return $member;
+        });
+        if ($conversation->group) {
+            $conversation->group->image_url = $conversation->group->imageUrl();
+        }
+
+        return response()->json($conversation);
     }
 
     public function markRead(Request $request, Conversation $conversation)

@@ -14,7 +14,16 @@ class GroupController extends Controller
     {
         $groups = Group::whereHas('members', function ($q) use ($request) {
             $q->where('user_id', $request->user()->id);
-        })->with(['members', 'owner'])->latest()->get();
+        })->with(['members', 'owner', 'conversation'])->latest()->get();
+
+        $groups->transform(function ($g) {
+            $g->image_url = $g->imageUrl();
+            $g->members->transform(function ($m) {
+                $m->avatar_url = $m->avatarUrl();
+                return $m;
+            });
+            return $g;
+        });
 
         return response()->json($groups);
     }
@@ -22,10 +31,10 @@ class GroupController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name'        => 'required|string|max:100',
-            'description' => 'nullable|string|max:500',
-            'image'       => 'nullable|image|max:2048',
-            'member_ids'  => 'nullable|array',
+            'name'         => 'required|string|max:100',
+            'description'  => 'nullable|string|max:500',
+            'image'        => 'nullable|image|max:2048',
+            'member_ids'   => 'nullable|array',
             'member_ids.*' => 'exists:users,id',
         ]);
 
@@ -54,20 +63,48 @@ class GroupController extends Controller
 
         foreach ($members as $userId) {
             $conversation->members()->attach($userId);
+
+            // Also add to group_members table with role
+            \DB::table('group_members')->insert([
+                'group_id'   => $group->id,
+                'user_id'    => $userId,
+                'role'       => $userId === $request->user()->id ? 'owner' : 'member',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
         }
 
-        return response()->json($group->load(['members', 'conversation']), 201);
+        $group->load(['members', 'conversation']);
+        $group->image_url = $group->imageUrl();
+
+        return response()->json($group, 201);
     }
 
-    public function show(Group $group)
+    public function show(Request $request, Group $group)
     {
-        return response()->json($group->load(['members', 'owner', 'conversation']));
+        $isMember = $group->members()->where('user_id', $request->user()->id)->exists();
+        if (!$isMember) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $group->load(['members', 'owner', 'conversation']);
+        $group->image_url = $group->imageUrl();
+        $group->members->transform(function ($m) {
+            $m->avatar_url = $m->avatarUrl();
+            $m->role = $m->pivot->role ?? 'member';
+            return $m;
+        });
+
+        return response()->json($group);
     }
 
     public function update(Request $request, Group $group)
     {
-        if ($group->owner_id !== $request->user()->id && !$request->user()->isAdmin()) {
-            return response()->json(['message' => 'Forbidden'], 403);
+        $member = $group->members()->where('user_id', $request->user()->id)->first();
+        $isAdmin = $member && in_array($member->pivot->role, ['owner', 'admin']);
+
+        if (!$isAdmin && !$request->user()->isAdmin()) {
+            return response()->json(['message' => 'Only group admins can edit'], 403);
         }
 
         $data = $request->validate([
@@ -81,14 +118,15 @@ class GroupController extends Controller
         }
 
         $group->update($data);
+        $group->image_url = $group->imageUrl();
 
-        return response()->json($group->fresh());
+        return response()->json($group->fresh()->load('members'));
     }
 
     public function destroy(Request $request, Group $group)
     {
         if ($group->owner_id !== $request->user()->id && !$request->user()->isAdmin()) {
-            return response()->json(['message' => 'Forbidden'], 403);
+            return response()->json(['message' => 'Only the owner can delete the group'], 403);
         }
 
         $group->delete();
@@ -100,21 +138,85 @@ class GroupController extends Controller
     {
         $request->validate(['user_id' => 'required|exists:users,id']);
 
+        $member = $group->members()->where('user_id', $request->user()->id)->first();
+        $isAdmin = $member && in_array($member->pivot->role, ['owner', 'admin']);
+
+        if (!$isAdmin) {
+            return response()->json(['message' => 'Only admins can add members'], 403);
+        }
+
+        $exists = $group->members()->where('user_id', $request->user_id)->exists();
+        if ($exists) {
+            return response()->json(['message' => 'User already a member'], 422);
+        }
+
         $conversation = $group->conversation;
         $conversation->members()->syncWithoutDetaching([$request->user_id]);
+
+        \DB::table('group_members')->insert([
+            'group_id'   => $group->id,
+            'user_id'    => $request->user_id,
+            'role'       => 'member',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         return response()->json(['message' => 'Member added']);
     }
 
     public function removeMember(Request $request, Group $group, $userId)
     {
-        if ($group->owner_id !== $request->user()->id && !$request->user()->isAdmin()) {
+        $member = $group->members()->where('user_id', $request->user()->id)->first();
+        $isAdmin = $member && in_array($member->pivot->role, ['owner', 'admin']);
+        $isSelf = (int) $userId === $request->user()->id;
+
+        if (!$isAdmin && !$isSelf) {
             return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        if ($group->owner_id == $userId) {
+            return response()->json(['message' => 'Cannot remove the group owner'], 403);
         }
 
         $conversation = $group->conversation;
         $conversation->members()->detach($userId);
 
+        \DB::table('group_members')
+            ->where('group_id', $group->id)
+            ->where('user_id', $userId)
+            ->delete();
+
         return response()->json(['message' => 'Member removed']);
+    }
+
+    public function promoteMember(Request $request, Group $group, $userId)
+    {
+        if ($group->owner_id !== $request->user()->id) {
+            return response()->json(['message' => 'Only the owner can promote members'], 403);
+        }
+
+        \DB::table('group_members')
+            ->where('group_id', $group->id)
+            ->where('user_id', $userId)
+            ->update(['role' => 'admin']);
+
+        return response()->json(['message' => 'Member promoted to admin']);
+    }
+
+    public function leaveGroup(Request $request, Group $group)
+    {
+        if ($group->owner_id === $request->user()->id) {
+            return response()->json(['message' => 'Owner must transfer ownership or delete the group'], 403);
+        }
+
+        $conversation = $group->conversation;
+        $conversation->members()->detach($request->user()->id);
+
+        \DB::table('group_members')
+            ->where('group_id', $group->id)
+            ->where('user_id', $request->user()->id)
+            ->delete();
+
+        return response()->json(['message' => 'Left the group']);
     }
 }

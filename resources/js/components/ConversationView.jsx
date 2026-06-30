@@ -4,8 +4,9 @@ import { useConversation } from '../hooks/useConversation'
 import { useAuth } from '../contexts/AuthContext'
 import MessageBubble from './MessageBubble'
 import MessageInput from './MessageInput'
+import GroupInfoModal from './GroupInfoModal'
 import api from '../api/axios'
-import { Phone, MoreVertical, ArrowLeft, X } from 'lucide-react'
+import { Phone, MoreVertical, ArrowLeft, X, Users } from 'lucide-react'
 
 export default function ConversationView() {
     const { id } = useParams()
@@ -14,6 +15,7 @@ export default function ConversationView() {
     const { messages, loading, typingUsers, sendMessage, sendTyping, setMessages } = useConversation(id)
     const [conversation, setConversation] = useState(null)
     const [replyTo, setReplyTo] = useState(null)
+    const [showGroupInfo, setShowGroupInfo] = useState(false)
     const bottomRef = useRef(null)
 
     useEffect(() => {
@@ -32,9 +34,7 @@ export default function ConversationView() {
             .then(res => setMessages(res.data.data.reverse()))
     }, [id, setMessages])
 
-    const handleReply = (message) => {
-        setReplyTo(message)
-    }
+    const handleReply = (message) => setReplyTo(message)
 
     const handleSendWithReply = async (body, formData = null) => {
         if (formData) {
@@ -53,11 +53,22 @@ export default function ConversationView() {
         setReplyTo(null)
     }
 
+    const isGroup = conversation?.type === 'group'
     const other = conversation?.members?.find(m => m.id !== user?.id)
-    const title = conversation?.type === 'group' ? conversation?.group?.name : other?.name
-    const avatar = conversation?.type === 'group'
-        ? `https://ui-avatars.com/api/?name=${encodeURIComponent(title || 'G')}&background=6366f1&color=fff`
+    const title = isGroup ? conversation?.group?.name : other?.name
+    const avatar = isGroup
+        ? (conversation?.group?.image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(title || 'G')}&background=6366f1&color=fff`)
         : other?.avatar_url
+
+    const handleGroupLeft = () => {
+        setShowGroupInfo(false)
+        navigate('/chat')
+    }
+
+    const handleGroupDeleted = () => {
+        setShowGroupInfo(false)
+        navigate('/chat')
+    }
 
     if (loading) {
         return (
@@ -78,24 +89,40 @@ export default function ConversationView() {
                     className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-white rounded-xl transition-all flex-shrink-0">
                     <ArrowLeft size={20} />
                 </button>
-                {avatar && (
-                    <div className="relative flex-shrink-0">
-                        <img src={avatar} alt="" className="w-9 h-9 rounded-full object-cover" />
-                        {conversation?.type === 'private' && other?.is_online && (
-                            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 border-2 border-[#111318] rounded-full" />
-                        )}
+
+                <button
+                    onClick={() => isGroup && setShowGroupInfo(true)}
+                    className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                >
+                    {avatar && (
+                        <div className="relative flex-shrink-0">
+                            <img src={avatar} alt="" className="w-9 h-9 rounded-full object-cover" />
+                            {!isGroup && other?.is_online && (
+                                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 border-2 border-[#111318] rounded-full" />
+                            )}
+                        </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                        <p className="text-white font-semibold text-sm truncate">{title}</p>
+                        <p className="text-xs text-gray-600">
+                            {isGroup
+                                ? `${conversation?.members?.length || 0} members`
+                                : (other?.is_online ? '🟢 Online' : 'Offline')
+                            }
+                        </p>
                     </div>
-                )}
-                <div className="flex-1 min-w-0">
-                    <p className="text-white font-semibold text-sm truncate">{title}</p>
-                    <p className="text-xs text-gray-600">{other?.is_online ? '🟢 Online' : 'Offline'}</p>
-                </div>
+                </button>
+
                 <div className="flex items-center gap-1 flex-shrink-0">
-                    <button className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-white rounded-xl">
-                        <Phone size={17} />
-                    </button>
-                    <button className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-white rounded-xl">
-                        <MoreVertical size={17} />
+                    {!isGroup && (
+                        <button className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-white rounded-xl">
+                            <Phone size={17} />
+                        </button>
+                    )}
+                    <button
+                        onClick={() => isGroup ? setShowGroupInfo(true) : null}
+                        className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-white rounded-xl">
+                        {isGroup ? <Users size={17} /> : <MoreVertical size={17} />}
                     </button>
                 </div>
             </div>
@@ -165,12 +192,18 @@ export default function ConversationView() {
 
             {/* Input */}
             <div style={{ flexShrink: 0 }}>
-                <MessageInput
-                    onSend={handleSendWithReply}
-                    onTyping={sendTyping}
-                    conversationId={id}
-                />
+                <MessageInput onSend={handleSendWithReply} onTyping={sendTyping} conversationId={id} />
             </div>
+
+            {/* Group Info Modal */}
+            {showGroupInfo && conversation?.group && (
+                <GroupInfoModal
+                    groupId={conversation.group.id}
+                    onClose={() => setShowGroupInfo(false)}
+                    onLeft={handleGroupLeft}
+                    onDeleted={handleGroupDeleted}
+                />
+            )}
         </div>
     )
 }
