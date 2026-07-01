@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#111318">
     <title>Whispr</title>
     @viteReactRefresh
-    @vite(['resources/css/app.css', 'resources/js/App.jsx'])
+    @vite(['resources/css/app.css', 'resources/js/ChatApp.jsx'])
     <style>
         *, *::before, *::after { box-sizing: border-box; }
         html { height: 100%; }
