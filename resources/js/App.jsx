@@ -10,7 +10,7 @@ function PrivateRoute({ children }) {
     const { user, loading } = useAuth()
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-950">
+            <div className="min-h-screen flex items-center justify-center bg-[#0d0f14]">
                 <div className="text-gray-400 text-sm">Loading...</div>
             </div>
         )
@@ -30,13 +30,13 @@ export default function App() {
             <Routes>
                 <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
                 <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
-                <Route path="/chat" element={<PrivateRoute><ChatLayout /></PrivateRoute>} />
-                <Route path="/chat/:id" element={<PrivateRoute><ChatLayout /></PrivateRoute>} />
-                <Route path="/chat/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
                 <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
+                <Route path="/chat/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
+                <Route path="/chat/:id" element={<PrivateRoute><ChatLayout /></PrivateRoute>} />
+                <Route path="/chat" element={<PrivateRoute><ChatLayout /></PrivateRoute>} />
                 <Route path="/" element={<Navigate to="/chat" />} />
                 <Route path="*" element={
-                    <div className="min-h-screen flex items-center justify-center bg-gray-950 text-white">
+                    <div className="min-h-screen flex items-center justify-center bg-[#0d0f14] text-white">
                         <div className="text-center">
                             <p className="text-6xl mb-4">404</p>
                             <p className="text-gray-400">Page not found</p>
