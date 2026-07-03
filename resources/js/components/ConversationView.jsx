@@ -6,7 +6,7 @@ import MessageBubble from './MessageBubble'
 import MessageInput from './MessageInput'
 import GroupInfoModal from './GroupInfoModal'
 import api from '../api/axios'
-import { Phone, MoreVertical, ArrowLeft, X, Users } from 'lucide-react'
+import { Phone, MoreVertical, ArrowLeft, X, Users, Search } from 'lucide-react'
 
 export default function ConversationView() {
     const { id } = useParams()
@@ -16,7 +16,14 @@ export default function ConversationView() {
     const [conversation, setConversation] = useState(null)
     const [replyTo, setReplyTo] = useState(null)
     const [showGroupInfo, setShowGroupInfo] = useState(false)
+    const [showSearch, setShowSearch] = useState(false)
+    const [searchQuery, setSearchQuery] = useState('')
+    const [searchResults, setSearchResults] = useState([])
+    const [searchLoading, setSearchLoading] = useState(false)
+    const [highlightedId, setHighlightedId] = useState(null)
     const bottomRef = useRef(null)
+    const searchInputRef = useRef(null)
+    const messageRefs = useRef({})
 
     useEffect(() => {
         if (id) {
@@ -28,6 +35,35 @@ export default function ConversationView() {
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages])
+
+    useEffect(() => {
+        if (showSearch && searchInputRef.current) {
+            searchInputRef.current.focus()
+        }
+    }, [showSearch])
+
+    useEffect(() => {
+        if (!searchQuery.trim()) { setSearchResults([]); return }
+        setSearchLoading(true)
+        const timer = setTimeout(() => {
+            const q = searchQuery.toLowerCase()
+            const results = messages.filter(m =>
+                m.body && m.body.toLowerCase().includes(q) && !m.is_deleted
+            )
+            setSearchResults(results)
+            setSearchLoading(false)
+        }, 300)
+        return () => clearTimeout(timer)
+    }, [searchQuery, messages])
+
+    const scrollToMessage = (msgId) => {
+        setHighlightedId(msgId)
+        const el = messageRefs.current[msgId]
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            setTimeout(() => setHighlightedId(null), 2000)
+        }
+    }
 
     const handleUpdate = useCallback(() => {
         api.get(`/conversations/${id}/messages`)
@@ -60,15 +96,8 @@ export default function ConversationView() {
         ? (conversation?.group?.image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(title || 'G')}&background=6366f1&color=fff`)
         : other?.avatar_url
 
-    const handleGroupLeft = () => {
-        setShowGroupInfo(false)
-        navigate('/chat')
-    }
-
-    const handleGroupDeleted = () => {
-        setShowGroupInfo(false)
-        navigate('/chat')
-    }
+    const handleGroupLeft = () => { setShowGroupInfo(false); navigate('/chat') }
+    const handleGroupDeleted = () => { setShowGroupInfo(false); navigate('/chat') }
 
     if (loading) {
         return (
@@ -90,10 +119,8 @@ export default function ConversationView() {
                     <ArrowLeft size={20} />
                 </button>
 
-                <button
-                    onClick={() => isGroup && setShowGroupInfo(true)}
-                    className="flex items-center gap-3 flex-1 min-w-0 text-left"
-                >
+                <button onClick={() => isGroup && setShowGroupInfo(true)}
+                    className="flex items-center gap-3 flex-1 min-w-0 text-left">
                     {avatar && (
                         <div className="relative flex-shrink-0">
                             <img src={avatar} alt="" className="w-9 h-9 rounded-full object-cover" />
@@ -105,27 +132,85 @@ export default function ConversationView() {
                     <div className="flex-1 min-w-0">
                         <p className="text-white font-semibold text-sm truncate">{title}</p>
                         <p className="text-xs text-gray-600">
-                            {isGroup
-                                ? `${conversation?.members?.length || 0} members`
-                                : (other?.is_online ? '🟢 Online' : 'Offline')
-                            }
+                            {isGroup ? `${conversation?.members?.length || 0} members` : (other?.is_online ? '🟢 Online' : 'Offline')}
                         </p>
                     </div>
                 </button>
 
                 <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                        onClick={() => { setShowSearch(!showSearch); setSearchQuery(''); setSearchResults([]) }}
+                        className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
+                            showSearch ? 'text-indigo-400 bg-indigo-500/10' : 'text-gray-500 hover:text-white'
+                        }`}>
+                        <Search size={17} />
+                    </button>
                     {!isGroup && (
                         <button className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-white rounded-xl">
                             <Phone size={17} />
                         </button>
                     )}
-                    <button
-                        onClick={() => isGroup ? setShowGroupInfo(true) : null}
+                    <button onClick={() => isGroup ? setShowGroupInfo(true) : null}
                         className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-white rounded-xl">
                         {isGroup ? <Users size={17} /> : <MoreVertical size={17} />}
                     </button>
                 </div>
             </div>
+
+            {/* Search bar */}
+            {showSearch && (
+                <div className="bg-[#111318] border-b border-white/5 px-3 py-2" style={{ flexShrink: 0 }}>
+                    <div className="flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2 border border-white/10 focus-within:border-indigo-500/50 transition-all">
+                        <Search size={14} className="text-gray-500 flex-shrink-0" />
+                        <input
+                            ref={searchInputRef}
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            placeholder="Search messages..."
+                            className="bg-transparent text-sm outline-none w-full text-white placeholder-gray-600"
+                        />
+                        {searchQuery && (
+                            <button onClick={() => { setSearchQuery(''); setSearchResults([]) }}
+                                className="text-gray-500 hover:text-gray-300 flex-shrink-0">
+                                <X size={14} />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Search results */}
+                    {searchQuery && (
+                        <div className="mt-2 max-h-48 overflow-y-auto space-y-1">
+                            {searchLoading && (
+                                <p className="text-xs text-gray-600 px-2 py-1">Searching...</p>
+                            )}
+                            {!searchLoading && searchResults.length === 0 && (
+                                <p className="text-xs text-gray-600 px-2 py-2">No messages found for "{searchQuery}"</p>
+                            )}
+                            {!searchLoading && searchResults.map(msg => (
+                                <button key={msg.id} onClick={() => scrollToMessage(msg.id)}
+                                    className="w-full flex items-start gap-2 px-2 py-2 hover:bg-white/5 rounded-lg transition-all text-left">
+                                    <img src={msg.sender?.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover flex-shrink-0 mt-0.5" />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-medium text-indigo-400">{msg.sender?.name}</p>
+                                        <p className="text-xs text-gray-400 truncate">
+                                            {msg.body.replace(
+                                                new RegExp(`(${searchQuery})`, 'gi'),
+                                                '[$1]'
+                                            )}
+                                        </p>
+                                    </div>
+                                    <span className="text-[10px] text-gray-600 flex-shrink-0">
+                                        {new Date(msg.created_at).toLocaleDateString()}
+                                    </span>
+                                </button>
+                            ))}
+                            {!searchLoading && searchResults.length > 0 && (
+                                <p className="text-[10px] text-gray-600 px-2 py-1">{searchResults.length} result{searchResults.length !== 1 ? 's' : ''} found</p>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Messages */}
             <div className="overflow-y-auto overscroll-contain py-3" style={{ flex: '1 1 0', minHeight: 0 }}>
@@ -142,8 +227,14 @@ export default function ConversationView() {
                 {messages.map((msg, i) => {
                     const prevMsg = messages[i - 1]
                     const showDate = !prevMsg || new Date(msg.created_at).toDateString() !== new Date(prevMsg.created_at).toDateString()
+                    const isHighlighted = highlightedId === msg.id
+
                     return (
-                        <div key={msg.id}>
+                        <div
+                            key={msg.id}
+                            ref={el => messageRefs.current[msg.id] = el}
+                            className={`transition-all duration-500 ${isHighlighted ? 'bg-indigo-500/10 rounded-xl' : ''}`}
+                        >
                             {showDate && (
                                 <div className="flex items-center gap-3 px-4 py-2 my-1">
                                     <div className="flex-1 h-px bg-white/5" />
