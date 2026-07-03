@@ -240,13 +240,18 @@ export default function AdminDashboard() {
                                 className="bg-transparent text-sm outline-none w-full text-white placeholder-gray-600" />
                         </div>
                         {tab === 'users' && (
-                            <select value={filter} onChange={e => setFilter(e.target.value)}
-                                className="bg-white/5 border border-white/5 rounded-xl px-3 text-sm text-gray-300 outline-none">
-                                <option value="all">All</option>
-                                <option value="online">Online</option>
-                                <option value="banned">Banned</option>
-                                <option value="admins">Admins</option>
-                            </select>
+                            <div className="flex gap-1">
+                                {['all', 'online', 'banned', 'admins'].map(f => (
+                                    <button key={f} onClick={() => setFilter(f)}
+                                    className={`px-3 py-2 rounded-xl text-xs font-medium capitalize transition-all ${
+                                        filter === f
+                                        ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/20'
+                                        : 'text-gray-500 hover:text-white bg-white/5 border border-white/5'
+                                    }`}>
+                                    {f}
+                                    </button>
+                                ))}
+                            </div>
                         )}
                     </div>
                 )}
