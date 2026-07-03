@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
     ArrowLeft, Users, MessageSquare, FolderOpen, HardDrive,
@@ -19,31 +19,24 @@ export default function AdminDashboard() {
     const [filter, setFilter] = useState('all')
     const [loading, setLoading] = useState(true)
     const [menuOpenId, setMenuOpenId] = useState(null)
+    const [menuPos, setMenuPos] = useState({ top: 0, right: 0 })
 
-    // Guard - redirect non-admins
     useEffect(() => {
-        if (user && user.role !== 'admin') {
-            navigate('/chat')
-        }
+        if (user && user.role !== 'admin') navigate('/chat')
     }, [user, navigate])
 
-    const loadStats = () => {
-        api.get('/admin/stats').then(res => setStats(res.data))
-    }
-
+    const loadStats = () => api.get('/admin/stats').then(res => setStats(res.data))
     const loadUsers = () => {
         const params = new URLSearchParams()
         if (search) params.append('search', search)
         if (filter !== 'all') params.append('filter', filter)
         api.get(`/admin/users?${params}`).then(res => setUsers(res.data.data || []))
     }
-
     const loadMessages = () => {
         const params = new URLSearchParams()
         if (search) params.append('search', search)
         api.get(`/admin/messages?${params}`).then(res => setMessages(res.data.data || []))
     }
-
     const loadGroups = () => {
         const params = new URLSearchParams()
         if (search) params.append('search', search)
@@ -68,40 +61,49 @@ export default function AdminDashboard() {
         return () => clearTimeout(timer)
     }, [search, filter])
 
+    const openMenu = (e, id) => {
+        if (menuOpenId === id) { setMenuOpenId(null); return }
+        const rect = e.currentTarget.getBoundingClientRect()
+        setMenuPos({
+            top: rect.top + window.scrollY,
+            right: window.innerWidth - rect.right,
+        })
+        setMenuOpenId(id)
+    }
+
     const banUser = async (id) => {
         if (!confirm('Ban this user?')) return
         await api.post(`/admin/users/${id}/ban`)
+        setMenuOpenId(null)
         loadUsers()
     }
-
     const unbanUser = async (id) => {
         await api.post(`/admin/users/${id}/unban`)
+        setMenuOpenId(null)
         loadUsers()
     }
-
     const makeAdmin = async (id) => {
         if (!confirm('Make this user an admin?')) return
         await api.post(`/admin/users/${id}/make-admin`)
+        setMenuOpenId(null)
         loadUsers()
     }
-
     const removeAdmin = async (id) => {
         await api.post(`/admin/users/${id}/remove-admin`)
+        setMenuOpenId(null)
         loadUsers()
     }
-
     const deleteUser = async (id) => {
-        if (!confirm('Permanently delete this user? This cannot be undone.')) return
+        if (!confirm('Permanently delete this user?')) return
         await api.delete(`/admin/users/${id}`)
+        setMenuOpenId(null)
         loadUsers()
     }
-
     const deleteMessage = async (id) => {
         if (!confirm('Delete this message?')) return
         await api.delete(`/admin/messages/${id}`)
         loadMessages()
     }
-
     const deleteGroup = async (id) => {
         if (!confirm('Delete this group permanently?')) return
         await api.delete(`/admin/groups/${id}`)
@@ -119,6 +121,48 @@ export default function AdminDashboard() {
 
     return (
         <div className="min-h-screen min-h-dvh bg-[#0d0f14] text-white">
+            {/* Fixed dropdown portal */}
+            {menuOpenId && (
+                <>
+                    <div className="fixed inset-0 z-40" onClick={() => setMenuOpenId(null)} />
+                    <div
+                        className="fixed z-50 bg-[#1e2130] border border-white/10 rounded-xl shadow-2xl overflow-hidden min-w-[170px]"
+                        style={{ top: menuPos.top, right: menuPos.right + 36 }}
+                    >
+                        {users.find(u => u.id === menuOpenId)?.is_banned ? (
+                            <button onClick={() => unbanUser(menuOpenId)}
+                                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-green-400 hover:bg-white/5 text-left">
+                                <UserCheck size={14} /> Unban User
+                            </button>
+                        ) : users.find(u => u.id === menuOpenId)?.role !== 'admin' ? (
+                            <button onClick={() => banUser(menuOpenId)}
+                                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-400 hover:bg-white/5 text-left">
+                                <Ban size={14} /> Ban User
+                            </button>
+                        ) : null}
+
+                        {users.find(u => u.id === menuOpenId)?.role === 'admin' ? (
+                            <button onClick={() => removeAdmin(menuOpenId)}
+                                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 text-left">
+                                <Shield size={14} /> Remove Admin
+                            </button>
+                        ) : (
+                            <button onClick={() => makeAdmin(menuOpenId)}
+                                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-indigo-400 hover:bg-white/5 text-left">
+                                <Crown size={14} /> Make Admin
+                            </button>
+                        )}
+
+                        {users.find(u => u.id === menuOpenId)?.role !== 'admin' && (
+                            <button onClick={() => deleteUser(menuOpenId)}
+                                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 text-left border-t border-white/5">
+                                <Trash2 size={14} /> Delete User
+                            </button>
+                        )}
+                    </div>
+                </>
+            )}
+
             <div className="max-w-5xl mx-auto px-4 py-5">
                 {/* Header */}
                 <div className="flex items-center gap-3 mb-6">
@@ -162,7 +206,6 @@ export default function AdminDashboard() {
                             <StatCard label="Storage Used" value={`${stats.storage_used_mb} MB`} icon={HardDrive} color="indigo" />
                         </div>
 
-                        {/* Messages per day chart */}
                         {stats.messages_per_day?.length > 0 && (
                             <div className="bg-[#111318] rounded-2xl p-4 border border-white/5">
                                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-4">Messages — Last 7 Days</p>
@@ -173,7 +216,7 @@ export default function AdminDashboard() {
                                         return (
                                             <div key={d.date} className="flex-1 flex flex-col items-center gap-1.5">
                                                 <span className="text-[10px] text-gray-500">{d.count}</span>
-                                                <div className="w-full bg-gradient-to-t from-indigo-600 to-purple-600 rounded-t-lg transition-all"
+                                                <div className="w-full bg-gradient-to-t from-indigo-600 to-purple-600 rounded-t-lg"
                                                     style={{ height: `${height}%`, minHeight: 4 }} />
                                                 <span className="text-[9px] text-gray-600">
                                                     {new Date(d.date).toLocaleDateString('en-US', { weekday: 'short' })}
@@ -187,17 +230,14 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* SEARCH BAR for users/messages/groups tabs */}
+                {/* Search bar */}
                 {tab !== 'overview' && (
                     <div className="flex gap-2 mb-4">
                         <div className="flex-1 flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2.5 border border-white/5">
                             <Search size={15} className="text-gray-500 flex-shrink-0" />
-                            <input
-                                value={search}
-                                onChange={e => setSearch(e.target.value)}
+                            <input value={search} onChange={e => setSearch(e.target.value)}
                                 placeholder={`Search ${tab}...`}
-                                className="bg-transparent text-sm outline-none w-full text-white placeholder-gray-600"
-                            />
+                                className="bg-transparent text-sm outline-none w-full text-white placeholder-gray-600" />
                         </div>
                         {tab === 'users' && (
                             <select value={filter} onChange={e => setFilter(e.target.value)}
@@ -227,49 +267,11 @@ export default function AdminDashboard() {
                                     <p className="text-xs text-gray-500 truncate">@{u.username} · {u.email}</p>
                                     <p className="text-[10px] text-gray-600">{u.messages_count || 0} messages</p>
                                 </div>
-
-                                {/* Actions menu */}
-                                <div className="relative flex-shrink-0">
-                                    <button onClick={() => setMenuOpenId(menuOpenId === u.id ? null : u.id)}
-                                        className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/5 rounded-lg transition-all">
-                                        <MoreVertical size={16} />
-                                    </button>
-                                    {menuOpenId === u.id && (
-                                        <>
-                                            <div className="fixed inset-0 z-40" onClick={() => setMenuOpenId(null)} />
-                                            <div className="absolute right-0 bottom-9 z-50 bg-[#1e2130] border border-white/10 rounded-xl shadow-xl overflow-hidden min-w-[160px]">
-                                                {u.is_banned ? (
-                                                    <button onClick={() => { unbanUser(u.id); setMenuOpenId(null) }}
-                                                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-green-400 hover:bg-white/5 text-left">
-                                                        <UserCheck size={14} /> Unban
-                                                    </button>
-                                                ) : u.role !== 'admin' ? (
-                                                    <button onClick={() => { banUser(u.id); setMenuOpenId(null) }}
-                                                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-400 hover:bg-white/5 text-left">
-                                                        <Ban size={14} /> Ban User
-                                                    </button>
-                                                ) : null}
-                                                {u.role === 'admin' ? (
-                                                    <button onClick={() => { removeAdmin(u.id); setMenuOpenId(null) }}
-                                                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 text-left">
-                                                        <Shield size={14} /> Remove Admin
-                                                    </button>
-                                                ) : (
-                                                    <button onClick={() => { makeAdmin(u.id); setMenuOpenId(null) }}
-                                                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-indigo-400 hover:bg-white/5 text-left">
-                                                        <Crown size={14} /> Make Admin
-                                                    </button>
-                                                )}
-                                                {u.role !== 'admin' && (
-                                                    <button onClick={() => { deleteUser(u.id); setMenuOpenId(null) }}
-                                                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 text-left border-t border-white/5">
-                                                        <Trash2 size={14} /> Delete User
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
+                                <button
+                                    onClick={(e) => openMenu(e, u.id)}
+                                    className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/5 rounded-lg transition-all flex-shrink-0">
+                                    <MoreVertical size={16} />
+                                </button>
                             </div>
                         ))}
                         {users.length === 0 && !loading && (
@@ -310,9 +312,7 @@ export default function AdminDashboard() {
                                 <img src={g.image_url} alt="" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium text-white truncate">{g.name}</p>
-                                    <p className="text-xs text-gray-500">
-                                        Owner: {g.owner?.name} · {g.members_count} members
-                                    </p>
+                                    <p className="text-xs text-gray-500">Owner: {g.owner?.name} · {g.members_count} members</p>
                                 </div>
                                 <button onClick={() => deleteGroup(g.id)}
                                     className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all flex-shrink-0">
