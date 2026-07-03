@@ -237,7 +237,7 @@ export default function AdminDashboard() {
                                     {menuOpenId === u.id && (
                                         <>
                                             <div className="fixed inset-0 z-40" onClick={() => setMenuOpenId(null)} />
-                                            <div className="absolute right-0 top-9 z-50 bg-[#1e2130] border border-white/10 rounded-xl shadow-xl overflow-hidden min-w-[160px]">
+                                            <div className="absolute right-0 bottom-9 z-50 bg-[#1e2130] border border-white/10 rounded-xl shadow-xl overflow-hidden min-w-[160px]">
                                                 {u.is_banned ? (
                                                     <button onClick={() => { unbanUser(u.id); setMenuOpenId(null) }}
                                                         className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-green-400 hover:bg-white/5 text-left">
