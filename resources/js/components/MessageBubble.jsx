@@ -126,7 +126,12 @@ export default function MessageBubble({ message, onReact, onUpdate, onReply, onP
 
                 {/* Context menu */}
                 {showMenu && (
-                    <div className={`absolute z-50 bottom-full mb-2 bg-[#1e2130] border border-white/10 rounded-2xl shadow-xl overflow-hidden min-w-[180px] ${isOwn ? 'right-0' : 'left-0'}`}>
+                    <div className={`absolute z-50 bg-[#1e2130] border border-white/10 rounded-2xl shadow-xl overflow-hidden min-w-[180px] ${isOwn ? 'right-0' : 'left-0'}`}
+                    style={{ 
+                        ...(menuRef.current?.getBoundingClientRect().top < 300 
+                        ? { top: 'calc(100% + 8px)' }  
+                        : { bottom: 'calc(100% + 8px)' })
+                        }}>
                         {/* Quick reactions */}
                         <div className="flex gap-1 p-2 border-b border-white/5">
                             {EMOJIS.map(emoji => (
