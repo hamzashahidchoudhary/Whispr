@@ -37,17 +37,21 @@ export default function Settings() {
     }
 
     const uploadAvatar = async (e) => {
-        const file = e.target.files[0]
-        if (!file) return
-        const fd = new FormData()
-        fd.append('avatar', file)
-        try {
-            const { data } = await api.post('/profile/avatar', fd)
-            setUser(prev => ({ ...prev, avatar_url: data.avatar_url }))
-        } catch {
-            setError('Failed to upload avatar')
-        }
+    const file = e.target.files[0]
+    if (!file) return
+    const fd = new FormData()
+    fd.append('avatar', file)
+    try {
+        const { data } = await api.post('/profile/avatar', fd, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        })
+        setUser(prev => ({ ...prev, avatar_url: data.avatar_url }))
+    } catch (err) {
+        setError(err.response?.data?.message || 'Failed to upload avatar')
     }
+}
 
     const changePassword = async () => {
         setPwMsg('')
