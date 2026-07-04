@@ -6,6 +6,12 @@ import api from '../api/axios'
 
 const EMOJIS = ['❤️', '👍', '😂', '😢', '🔥', '😮']
 
+const getUrl = (path) => {
+    if (!path) return ''
+    if (path.startsWith('http://') || path.startsWith('https://')) return path
+    return '/storage/' + path
+}
+
 export default function MessageBubble({ message, onReact, onUpdate, onReply, onPin, isPinned }) {
     const { user } = useAuth()
     const isOwn = message.sender_id === user?.id
@@ -126,13 +132,14 @@ export default function MessageBubble({ message, onReact, onUpdate, onReply, onP
 
                 {/* Context menu */}
                 {showMenu && (
-                    <div className={`absolute z-50 bg-[#1e2130] border border-white/10 rounded-2xl shadow-xl overflow-hidden min-w-[180px] ${isOwn ? 'right-0' : 'left-0'}`}
-                    style={{ 
-                        ...(menuRef.current?.getBoundingClientRect().top < 300 
-                        ? { top: 'calc(100% + 8px)' }  
-                        : { bottom: 'calc(100% + 8px)' })
-                        }}>
-                        {/* Quick reactions */}
+                    <div
+                        className={`absolute z-50 bg-[#1e2130] border border-white/10 rounded-2xl shadow-xl overflow-hidden min-w-[180px] ${isOwn ? 'right-0' : 'left-0'}`}
+                        style={{
+                            ...(menuRef.current?.getBoundingClientRect().top < 300
+                                ? { top: 'calc(100% + 8px)' }
+                                : { bottom: 'calc(100% + 8px)' })
+                        }}
+                    >
                         <div className="flex gap-1 p-2 border-b border-white/5">
                             {EMOJIS.map(emoji => (
                                 <button key={emoji} onClick={() => handleReact(emoji)}
@@ -211,16 +218,27 @@ export default function MessageBubble({ message, onReact, onUpdate, onReply, onP
                             <Pin size={10} className="absolute top-1.5 right-1.5 text-indigo-300 opacity-60" />
                         )}
                         {message.body && <p>{message.body}</p>}
+
                         {message.attachments?.map(att => (
                             <div key={att.id} className="mt-2">
                                 {att.mime_type?.startsWith('image/') ? (
-                                    <img src={'/storage/' + att.path} alt={att.name} className="rounded-xl max-w-full max-h-48 object-cover" />
+                                    <img
+                                        src={getUrl(att.path)}
+                                        alt={att.name}
+                                        className="rounded-xl max-w-full max-h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                        onClick={e => { e.stopPropagation(); window.open(getUrl(att.path), '_blank') }}
+                                    />
                                 ) : att.mime_type?.startsWith('video/') ? (
-                                    <video controls className="rounded-xl max-w-full max-h-48"><source src={'/storage/' + att.path} /></video>
+                                    <video controls className="rounded-xl max-w-full max-h-48">
+                                        <source src={getUrl(att.path)} />
+                                    </video>
                                 ) : att.mime_type?.startsWith('audio/') ? (
-                                    <audio controls className="w-full mt-1 max-w-[220px]"><source src={'/storage/' + att.path} /></audio>
+                                    <audio controls className="w-full mt-1 max-w-[220px]">
+                                        <source src={getUrl(att.path)} />
+                                    </audio>
                                 ) : (
-                                    <a href={'/storage/' + att.path} target="_blank" rel="noreferrer"
+                                    <a href={getUrl(att.path)} target="_blank" rel="noreferrer"
+                                        onClick={e => e.stopPropagation()}
                                         className="flex items-center gap-2 bg-black/20 rounded-xl px-3 py-2 text-xs hover:bg-black/30">
                                         📎 <span className="truncate">{att.name}</span>
                                     </a>
