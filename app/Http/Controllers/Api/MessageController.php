@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\MessageReaction;
-use App\Events\MessageSent;
+use App\Services\CloudinaryService;
 use Illuminate\Http\Request;
 
 class MessageController extends Controller
@@ -70,13 +70,43 @@ class MessageController extends Controller
         ]);
 
         if ($request->hasFile('attachments')) {
+            $cloudinary = new CloudinaryService();
+
             foreach ($request->file('attachments') as $file) {
-                $path = $file->store('attachments', 'public');
+                $isImage = str_starts_with($file->getMimeType(), 'image/');
+                $isVideo = str_starts_with($file->getMimeType(), 'video/');
+
+                $resourceType = $isVideo ? 'video' : ($isImage ? 'image' : 'raw');
+
+                $options = [
+                    'folder'        => 'whispr/attachments',
+                    'resource_type' => $resourceType,
+                ];
+
+                if ($isImage) {
+                    $options['transformation'] = [
+                        'quality' => 'auto',
+                        'fetch_format' => 'auto',
+                    ];
+                }
+
+                try {
+                    $result = $cloudinary->upload($file->getRealPath(), $options);
+                    $url = $result['url'];
+                    $publicId = $result['public_id'];
+                } catch (\Exception $e) {
+                    // Fallback to local storage
+                    $path = $file->store('attachments', 'public');
+                    $url = '/storage/' . $path;
+                    $publicId = null;
+                }
+
                 $message->attachments()->create([
-                    'path'      => $path,
-                    'name'      => $file->getClientOriginalName(),
-                    'mime_type' => $file->getMimeType(),
-                    'size'      => $file->getSize(),
+                    'path'             => $url,
+                    'name'             => $file->getClientOriginalName(),
+                    'mime_type'        => $file->getMimeType(),
+                    'size'             => $file->getSize(),
+                    'cloudinary_id'    => $publicId,
                 ]);
             }
         }
@@ -96,9 +126,7 @@ class MessageController extends Controller
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $request->validate([
-            'body' => 'required|string|max:5000',
-        ]);
+        $request->validate(['body' => 'required|string|max:5000']);
 
         $message->update([
             'body'      => $request->body,
@@ -121,9 +149,7 @@ class MessageController extends Controller
 
     public function react(Request $request, Message $message)
     {
-        $request->validate([
-            'emoji' => 'required|string|max:10',
-        ]);
+        $request->validate(['emoji' => 'required|string|max:10']);
 
         $userId = $request->user()->id;
 
@@ -165,7 +191,6 @@ class MessageController extends Controller
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        // Toggle pin
         if ($conversation->pinned_message_id === $message->id) {
             $conversation->update(['pinned_message_id' => null]);
             return response()->json(['message' => 'Message unpinned', 'pinned' => false]);

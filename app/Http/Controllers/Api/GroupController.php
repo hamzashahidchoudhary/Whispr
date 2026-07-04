@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Conversation;
 use App\Models\Group;
+use App\Services\CloudinaryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -46,9 +47,22 @@ class GroupController extends Controller
         ]);
 
         if ($request->hasFile('image')) {
-            $group->update([
-                'image' => $request->file('image')->store('groups', 'public'),
-            ]);
+            try {
+                $cloudinary = new CloudinaryService();
+                $result = $cloudinary->upload(
+                    $request->file('image')->getRealPath(),
+                    [
+                        'folder'         => 'whispr/groups',
+                        'public_id'      => 'group_' . $group->id,
+                        'overwrite'      => true,
+                        'transformation' => ['width' => 200, 'height' => 200, 'crop' => 'fill'],
+                    ]
+                );
+                $group->update(['image' => $result['url']]);
+            } catch (\Exception $e) {
+                $path = $request->file('image')->store('groups', 'public');
+                $group->update(['image' => '/storage/' . $path]);
+            }
         }
 
         $conversation = Conversation::create([
@@ -63,8 +77,6 @@ class GroupController extends Controller
 
         foreach ($members as $userId) {
             $conversation->members()->attach($userId);
-
-            // Also add to group_members table with role
             \DB::table('group_members')->insert([
                 'group_id'   => $group->id,
                 'user_id'    => $userId,
@@ -114,7 +126,22 @@ class GroupController extends Controller
         ]);
 
         if ($request->hasFile('image')) {
-            $data['image'] = $request->file('image')->store('groups', 'public');
+            try {
+                $cloudinary = new CloudinaryService();
+                $result = $cloudinary->upload(
+                    $request->file('image')->getRealPath(),
+                    [
+                        'folder'         => 'whispr/groups',
+                        'public_id'      => 'group_' . $group->id,
+                        'overwrite'      => true,
+                        'transformation' => ['width' => 200, 'height' => 200, 'crop' => 'fill'],
+                    ]
+                );
+                $data['image'] = $result['url'];
+            } catch (\Exception $e) {
+                $path = $request->file('image')->store('groups', 'public');
+                $data['image'] = '/storage/' . $path;
+            }
         }
 
         $group->update($data);
@@ -130,7 +157,6 @@ class GroupController extends Controller
         }
 
         $group->delete();
-
         return response()->json(['message' => 'Group deleted']);
     }
 
@@ -143,11 +169,6 @@ class GroupController extends Controller
 
         if (!$isAdmin) {
             return response()->json(['message' => 'Only admins can add members'], 403);
-        }
-
-        $exists = $group->members()->where('user_id', $request->user_id)->exists();
-        if ($exists) {
-            return response()->json(['message' => 'User already a member'], 422);
         }
 
         $conversation = $group->conversation;

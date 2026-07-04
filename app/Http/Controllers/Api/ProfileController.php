@@ -3,65 +3,86 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\CloudinaryService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rules;
 
 class ProfileController extends Controller
 {
     public function update(Request $request)
     {
-        $user = $request->user();
-
-        $data = $request->validate([
-            'name'     => 'sometimes|string|max:255',
-            'username' => 'sometimes|string|max:30|alpha_dash|unique:users,username,' . $user->id,
-            'status'   => 'sometimes|nullable|string|max:100',
+        $request->validate([
+            'name'     => 'sometimes|string|max:100',
+            'username' => 'sometimes|string|max:50|unique:users,username,' . $request->user()->id,
+            'status'   => 'sometimes|nullable|string|max:150',
             'bio'      => 'sometimes|nullable|string|max:500',
         ]);
 
-        $user->update($data);
+        $user = $request->user();
+        $user->update($request->only(['name', 'username', 'status', 'bio']));
+        $user->avatar_url = $user->avatarUrl();
 
-        return response()->json(array_merge($user->fresh()->toArray(), [
-            'avatar_url' => $user->avatarUrl(),
-        ]));
+        return response()->json($user);
     }
 
     public function uploadAvatar(Request $request)
     {
         $request->validate([
-            'avatar' => 'required|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'avatar' => 'required|image|max:2048',
         ]);
 
         $user = $request->user();
+        $cloudinary = new CloudinaryService();
 
-        if ($user->avatar) {
-            Storage::disk('public')->delete($user->avatar);
+        // Delete old avatar from Cloudinary if exists
+        if ($user->avatar_public_id) {
+            try {
+                $cloudinary->delete($user->avatar_public_id);
+            } catch (\Exception $e) {
+                // ignore
+            }
         }
 
-        $path = $request->file('avatar')->store('avatars', 'public');
-        $user->update(['avatar' => $path]);
+        // Upload new avatar
+        $result = $cloudinary->upload(
+            $request->file('avatar')->getRealPath(),
+            [
+                'folder'         => 'whispr/avatars',
+                'public_id'      => 'user_' . $user->id,
+                'overwrite'      => true,
+                'transformation' => [
+                    'width'  => 200,
+                    'height' => 200,
+                    'crop'   => 'fill',
+                    'gravity'=> 'face',
+                ],
+            ]
+        );
+
+        $user->update([
+            'avatar'           => $result['url'],
+            'avatar_public_id' => $result['public_id'],
+        ]);
 
         return response()->json([
-            'avatar_url' => $user->avatarUrl(),
+            'avatar_url' => $result['url'],
         ]);
     }
 
     public function changePassword(Request $request)
     {
         $request->validate([
-            'current_password' => ['required', function ($attr, $val, $fail) use ($request) {
-                if (!Hash::check($val, $request->user()->password)) {
-                    $fail('Current password is incorrect.');
-                }
-            }],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'current_password'      => 'required',
+            'password'              => 'required|min:8|confirmed',
+            'password_confirmation' => 'required',
         ]);
 
-        $request->user()->update([
-            'password' => Hash::make($request->password),
-        ]);
+        $user = $request->user();
+
+        if (!\Hash::check($request->current_password, $user->password)) {
+            return response()->json(['message' => 'Current password is incorrect'], 422);
+        }
+
+        $user->update(['password' => \Hash::make($request->password)]);
 
         return response()->json(['message' => 'Password updated successfully']);
     }
