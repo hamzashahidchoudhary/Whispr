@@ -86,9 +86,22 @@ export default function ConversationView() {
     }, [id, setMessages])
 
     const handlePin = useCallback(async (message) => {
+    try {
         await api.post(`/messages/${message.id}/pin`)
-        loadConversation()
-    }, [id])
+        // Reload conversation to get updated pinned_message_id
+        const res = await api.get(`/conversations/${id}`)
+        setConversation(res.data)
+        // Find pinned message
+        if (res.data.pinned_message_id) {
+            const pinned = messages.find(m => m.id === res.data.pinned_message_id)
+            setPinnedMessage(pinned || null)
+        } else {
+            setPinnedMessage(null)
+        }
+    } catch (err) {
+        console.error('Pin failed', err)
+    }
+}, [id, messages])
 
     const handleReply = (message) => setReplyTo(message)
 
