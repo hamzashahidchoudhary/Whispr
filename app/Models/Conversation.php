@@ -10,8 +10,8 @@ class Conversation extends Model
     use HasFactory;
 
     protected $fillable = [
-        'type', 'group_id', 'last_message_id',
-    ];
+        'type', 'group_id', 'last_message_id', 'pinned_message_id',
+        ];
 
     public function members()
     {
