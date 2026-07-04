@@ -6,7 +6,7 @@ import MessageBubble from './MessageBubble'
 import MessageInput from './MessageInput'
 import GroupInfoModal from './GroupInfoModal'
 import api from '../api/axios'
-import { Phone, MoreVertical, ArrowLeft, X, Users, Search } from 'lucide-react'
+import { Phone, MoreVertical, ArrowLeft, X, Users, Search, Pin } from 'lucide-react'
 
 export default function ConversationView() {
     const { id } = useParams()
@@ -21,25 +21,42 @@ export default function ConversationView() {
     const [searchResults, setSearchResults] = useState([])
     const [searchLoading, setSearchLoading] = useState(false)
     const [highlightedId, setHighlightedId] = useState(null)
+    const [pinnedMessage, setPinnedMessage] = useState(null)
     const bottomRef = useRef(null)
     const searchInputRef = useRef(null)
     const messageRefs = useRef({})
 
-    useEffect(() => {
+    const loadConversation = () => {
         if (id) {
-            api.get(`/conversations/${id}`).then(res => setConversation(res.data))
+            api.get(`/conversations/${id}`).then(res => {
+                setConversation(res.data)
+                if (res.data.pinned_message_id) {
+                    const pinned = messages.find(m => m.id === res.data.pinned_message_id)
+                    if (pinned) setPinnedMessage(pinned)
+                    else {
+                        // fetch pinned message separately
+                        api.get(`/conversations/${id}/messages`).then(r => {
+                            const all = r.data.data
+                            const p = all.find(m => m.id === res.data.pinned_message_id)
+                            if (p) setPinnedMessage(p)
+                        })
+                    }
+                } else {
+                    setPinnedMessage(null)
+                }
+            })
             api.post(`/conversations/${id}/read`).catch(() => {})
         }
-    }, [id])
+    }
+
+    useEffect(() => { loadConversation() }, [id])
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages])
 
     useEffect(() => {
-        if (showSearch && searchInputRef.current) {
-            searchInputRef.current.focus()
-        }
+        if (showSearch && searchInputRef.current) searchInputRef.current.focus()
     }, [showSearch])
 
     useEffect(() => {
@@ -47,9 +64,7 @@ export default function ConversationView() {
         setSearchLoading(true)
         const timer = setTimeout(() => {
             const q = searchQuery.toLowerCase()
-            const results = messages.filter(m =>
-                m.body && m.body.toLowerCase().includes(q) && !m.is_deleted
-            )
+            const results = messages.filter(m => m.body && m.body.toLowerCase().includes(q) && !m.is_deleted)
             setSearchResults(results)
             setSearchLoading(false)
         }, 300)
@@ -69,6 +84,11 @@ export default function ConversationView() {
         api.get(`/conversations/${id}/messages`)
             .then(res => setMessages(res.data.data.reverse()))
     }, [id, setMessages])
+
+    const handlePin = useCallback(async (message) => {
+        await api.post(`/messages/${message.id}/pin`)
+        loadConversation()
+    }, [id])
 
     const handleReply = (message) => setReplyTo(message)
 
@@ -118,7 +138,6 @@ export default function ConversationView() {
                     className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-white rounded-xl transition-all flex-shrink-0">
                     <ArrowLeft size={20} />
                 </button>
-
                 <button onClick={() => isGroup && setShowGroupInfo(true)}
                     className="flex items-center gap-3 flex-1 min-w-0 text-left">
                     {avatar && (
@@ -136,13 +155,9 @@ export default function ConversationView() {
                         </p>
                     </div>
                 </button>
-
                 <div className="flex items-center gap-1 flex-shrink-0">
-                    <button
-                        onClick={() => { setShowSearch(!showSearch); setSearchQuery(''); setSearchResults([]) }}
-                        className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
-                            showSearch ? 'text-indigo-400 bg-indigo-500/10' : 'text-gray-500 hover:text-white'
-                        }`}>
+                    <button onClick={() => { setShowSearch(!showSearch); setSearchQuery(''); setSearchResults([]) }}
+                        className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${showSearch ? 'text-indigo-400 bg-indigo-500/10' : 'text-gray-500 hover:text-white'}`}>
                         <Search size={17} />
                     </button>
                     {!isGroup && (
@@ -157,18 +172,34 @@ export default function ConversationView() {
                 </div>
             </div>
 
+            {/* Pinned Message Banner */}
+            {pinnedMessage && !showSearch && (
+                <div
+                    className="flex items-center gap-3 px-4 py-2 bg-indigo-600/10 border-b border-indigo-500/20 cursor-pointer hover:bg-indigo-600/15 transition-all"
+                    style={{ flexShrink: 0 }}
+                    onClick={() => scrollToMessage(pinnedMessage.id)}
+                >
+                    <Pin size={13} className="text-indigo-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                        <p className="text-[10px] text-indigo-400 font-medium mb-0.5">Pinned Message</p>
+                        <p className="text-xs text-gray-300 truncate">{pinnedMessage.body || '📎 Attachment'}</p>
+                    </div>
+                    <button
+                        onClick={e => { e.stopPropagation(); handlePin(pinnedMessage) }}
+                        className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-white rounded-lg flex-shrink-0">
+                        <X size={12} />
+                    </button>
+                </div>
+            )}
+
             {/* Search bar */}
             {showSearch && (
                 <div className="bg-[#111318] border-b border-white/5 px-3 py-2" style={{ flexShrink: 0 }}>
                     <div className="flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2 border border-white/10 focus-within:border-indigo-500/50 transition-all">
                         <Search size={14} className="text-gray-500 flex-shrink-0" />
-                        <input
-                            ref={searchInputRef}
-                            value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
+                        <input ref={searchInputRef} value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                             placeholder="Search messages..."
-                            className="bg-transparent text-sm outline-none w-full text-white placeholder-gray-600"
-                        />
+                            className="bg-transparent text-sm outline-none w-full text-white placeholder-gray-600" />
                         {searchQuery && (
                             <button onClick={() => { setSearchQuery(''); setSearchResults([]) }}
                                 className="text-gray-500 hover:text-gray-300 flex-shrink-0">
@@ -176,15 +207,11 @@ export default function ConversationView() {
                             </button>
                         )}
                     </div>
-
-                    {/* Search results */}
                     {searchQuery && (
                         <div className="mt-2 max-h-48 overflow-y-auto space-y-1">
-                            {searchLoading && (
-                                <p className="text-xs text-gray-600 px-2 py-1">Searching...</p>
-                            )}
+                            {searchLoading && <p className="text-xs text-gray-600 px-2 py-1">Searching...</p>}
                             {!searchLoading && searchResults.length === 0 && (
-                                <p className="text-xs text-gray-600 px-2 py-2">No messages found for "{searchQuery}"</p>
+                                <p className="text-xs text-gray-600 px-2 py-2">No messages found</p>
                             )}
                             {!searchLoading && searchResults.map(msg => (
                                 <button key={msg.id} onClick={() => scrollToMessage(msg.id)}
@@ -192,12 +219,7 @@ export default function ConversationView() {
                                     <img src={msg.sender?.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover flex-shrink-0 mt-0.5" />
                                     <div className="flex-1 min-w-0">
                                         <p className="text-xs font-medium text-indigo-400">{msg.sender?.name}</p>
-                                        <p className="text-xs text-gray-400 truncate">
-                                            {msg.body.replace(
-                                                new RegExp(`(${searchQuery})`, 'gi'),
-                                                '[$1]'
-                                            )}
-                                        </p>
+                                        <p className="text-xs text-gray-400 truncate">{msg.body}</p>
                                     </div>
                                     <span className="text-[10px] text-gray-600 flex-shrink-0">
                                         {new Date(msg.created_at).toLocaleDateString()}
@@ -205,7 +227,7 @@ export default function ConversationView() {
                                 </button>
                             ))}
                             {!searchLoading && searchResults.length > 0 && (
-                                <p className="text-[10px] text-gray-600 px-2 py-1">{searchResults.length} result{searchResults.length !== 1 ? 's' : ''} found</p>
+                                <p className="text-[10px] text-gray-600 px-2 py-1">{searchResults.length} result{searchResults.length !== 1 ? 's' : ''}</p>
                             )}
                         </div>
                     )}
@@ -228,13 +250,11 @@ export default function ConversationView() {
                     const prevMsg = messages[i - 1]
                     const showDate = !prevMsg || new Date(msg.created_at).toDateString() !== new Date(prevMsg.created_at).toDateString()
                     const isHighlighted = highlightedId === msg.id
+                    const isPinned = conversation?.pinned_message_id === msg.id
 
                     return (
-                        <div
-                            key={msg.id}
-                            ref={el => messageRefs.current[msg.id] = el}
-                            className={`transition-all duration-500 ${isHighlighted ? 'bg-indigo-500/10 rounded-xl' : ''}`}
-                        >
+                        <div key={msg.id} ref={el => messageRefs.current[msg.id] = el}
+                            className={`transition-all duration-500 ${isHighlighted ? 'bg-indigo-500/10 rounded-xl' : ''}`}>
                             {showDate && (
                                 <div className="flex items-center gap-3 px-4 py-2 my-1">
                                     <div className="flex-1 h-px bg-white/5" />
@@ -249,6 +269,8 @@ export default function ConversationView() {
                                 onReact={handleUpdate}
                                 onUpdate={handleUpdate}
                                 onReply={handleReply}
+                                onPin={handlePin}
+                                isPinned={isPinned}
                             />
                         </div>
                     )
@@ -267,7 +289,7 @@ export default function ConversationView() {
                 <div ref={bottomRef} />
             </div>
 
-            {/* Reply preview bar */}
+            {/* Reply preview */}
             {replyTo && (
                 <div className="flex items-center gap-3 px-4 py-2 bg-[#111318] border-t border-white/5" style={{ flexShrink: 0 }}>
                     <div className="flex-1 border-l-2 border-indigo-500 pl-3 min-w-0">
@@ -281,19 +303,14 @@ export default function ConversationView() {
                 </div>
             )}
 
-            {/* Input */}
             <div style={{ flexShrink: 0 }}>
                 <MessageInput onSend={handleSendWithReply} onTyping={sendTyping} conversationId={id} />
             </div>
 
-            {/* Group Info Modal */}
             {showGroupInfo && conversation?.group && (
-                <GroupInfoModal
-                    groupId={conversation.group.id}
+                <GroupInfoModal groupId={conversation.group.id}
                     onClose={() => setShowGroupInfo(false)}
-                    onLeft={handleGroupLeft}
-                    onDeleted={handleGroupDeleted}
-                />
+                    onLeft={handleGroupLeft} onDeleted={handleGroupDeleted} />
             )}
         </div>
     )

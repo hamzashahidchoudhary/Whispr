@@ -26,7 +26,7 @@ class MessageController extends Controller
         $messages = Message::where('conversation_id', $conversationId)
             ->with(['sender', 'attachments', 'reactions.user', 'replyTo.sender'])
             ->latest()
-            ->paginate(30);
+            ->paginate(50);
 
         $messages->getCollection()->transform(function ($message) {
             $message->sender->avatar_url = $message->sender->avatarUrl();
@@ -87,7 +87,6 @@ class MessageController extends Controller
         $message->sender->avatar_url = $message->sender->avatarUrl();
 
         // Broadcasting disabled - using polling instead
-
         return response()->json($message, 201);
     }
 
@@ -152,5 +151,27 @@ class MessageController extends Controller
         return response()->json([
             'reactions' => $message->reactions()->with('user')->get(),
         ]);
+    }
+
+    public function pin(Request $request, Message $message)
+    {
+        $conversation = Conversation::findOrFail($message->conversation_id);
+
+        $isMember = $conversation->members()
+            ->where('user_id', $request->user()->id)
+            ->exists();
+
+        if (!$isMember) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        // Toggle pin
+        if ($conversation->pinned_message_id === $message->id) {
+            $conversation->update(['pinned_message_id' => null]);
+            return response()->json(['message' => 'Message unpinned', 'pinned' => false]);
+        }
+
+        $conversation->update(['pinned_message_id' => $message->id]);
+        return response()->json(['message' => 'Message pinned', 'pinned' => true]);
     }
 }

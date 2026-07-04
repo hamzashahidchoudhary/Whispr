@@ -42,6 +42,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/messages/{message}', [MessageController::class, 'update']);
     Route::delete('/messages/{message}', [MessageController::class, 'destroy']);
     Route::post('/messages/{message}/react', [MessageController::class, 'react']);
+    Route::post('/messages/{message}/pin', [MessageController::class, 'pin']);
 
     // Groups
     Route::get('/groups', [GroupController::class, 'index']);
