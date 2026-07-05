@@ -240,4 +240,36 @@ class GroupController extends Controller
 
         return response()->json(['message' => 'Left the group']);
     }
+
+    public function updatePhoto(Request $request, Group $group)
+{
+    $member = $group->members()->where('user_id', $request->user()->id)->first();
+    $isAdmin = $member && in_array($member->pivot->role, ['owner', 'admin']);
+
+    if (!$isAdmin) {
+        return response()->json(['message' => 'Forbidden'], 403);
+    }
+
+    $request->validate(['image' => 'required|image|max:2048']);
+
+    try {
+        $cloudinary = new CloudinaryService();
+        $result = $cloudinary->upload(
+            $request->file('image')->getRealPath(),
+            [
+                'folder'         => 'whispr/groups',
+                'public_id'      => 'group_' . $group->id,
+                'overwrite'      => true,
+                'transformation' => ['width' => 200, 'height' => 200, 'crop' => 'fill'],
+            ]
+        );
+        $group->update(['image' => $result['url']]);
+    } catch (\Exception $e) {
+        $path = $request->file('image')->store('groups', 'public');
+        $group->update(['image' => '/storage/' . $path]);
+    }
+
+    $group->image_url = $group->imageUrl();
+    return response()->json(['image_url' => $group->image_url]);
+}
 }

@@ -38,7 +38,7 @@ export default function GroupInfoModal({ groupId, onClose, onLeft, onDeleted }) 
         const fd = new FormData()
         fd.append('image', file)
         try {
-            await api.post(`/groups/${groupId}?_method=PUT`, fd, {
+            await api.post(`/groups/${groupId}/photo`, fd, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             })
             loadGroup()

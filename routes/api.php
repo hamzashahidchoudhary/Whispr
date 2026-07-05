@@ -54,6 +54,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/groups/{group}/members/{userId}', [GroupController::class, 'removeMember']);
     Route::post('/groups/{group}/promote/{userId}', [GroupController::class, 'promoteMember']);
     Route::post('/groups/{group}/leave', [GroupController::class, 'leaveGroup']);
+    Route::post('/groups/{group}/photo', [GroupController::class, 'updatePhoto']);
 
     // Admin routes
     Route::middleware('admin')->prefix('admin')->group(function () {

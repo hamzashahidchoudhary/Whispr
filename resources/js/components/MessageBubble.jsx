@@ -225,7 +225,7 @@ export default function MessageBubble({ message, onReact, onUpdate, onReply, onP
                                     <img
                                         src={getUrl(att.path)}
                                         alt={att.name}
-                                        className="rounded-xl max-w-full max-h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                        className="rounded-xl w-full max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity"
                                         onClick={e => { e.stopPropagation(); window.open(getUrl(att.path), '_blank') }}
                                     />
                                 ) : att.mime_type?.startsWith('video/') ? (
