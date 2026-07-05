@@ -19,6 +19,17 @@ export function AuthProvider({ children }) {
         }
     }, [])
 
+    // Ping every 30 seconds to keep online status updated
+    useEffect(() => {
+        if (!user) return
+        const interval = setInterval(() => {
+            api.get('/auth/me')
+                .then(res => setUser(res.data))
+                .catch(() => {})
+        }, 30000)
+        return () => clearInterval(interval)
+    }, [user?.id])
+
     const login = async (email, password) => {
         const { data } = await api.post('/auth/login', { email, password })
         localStorage.setItem('auth_token', data.token)

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Carbon\Carbon;
 
 class User extends Authenticatable
 {
@@ -21,26 +22,38 @@ class User extends Authenticatable
         'password', 'remember_token',
     ];
 
+    protected $appends = ['is_online_status'];
+
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
+            'last_seen_at'      => 'datetime',
             'password'          => 'hashed',
-            'is_online'         => 'boolean',
             'is_banned'         => 'boolean',
         ];
     }
 
+    // Dynamic online status based on last_seen_at
+    public function getIsOnlineAttribute(): bool
+    {
+        if (!$this->last_seen_at) return false;
+        return Carbon::parse($this->last_seen_at)->gt(now()->subMinutes(2));
+    }
+
+    public function getIsOnlineStatusAttribute(): bool
+    {
+        return $this->is_online;
+    }
+
     public function avatarUrl(): string
     {
-        if ($this->avatar && (str_starts_with($this->avatar, 'http://') || str_starts_with($this->avatar, 'https://'))) {
-            return $this->avatar;
-        }
-
         if ($this->avatar) {
+            if (str_starts_with($this->avatar, 'http://') || str_starts_with($this->avatar, 'https://')) {
+                return $this->avatar;
+            }
             return asset('storage/' . $this->avatar);
         }
-
         return 'https://ui-avatars.com/api/?name=' . urlencode($this->name) . '&background=6366f1&color=fff&size=128';
     }
 
