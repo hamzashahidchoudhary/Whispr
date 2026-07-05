@@ -248,7 +248,7 @@ class GroupController extends Controller
         return response()->json(['message' => 'Forbidden'], 403);
     }
 
-    $request->validate(['image' => 'required|image|max:2048']);
+    $request->validate(['image' => 'required|image|max:10240']);
 
     try {
         $cloudinary = new CloudinaryService();
