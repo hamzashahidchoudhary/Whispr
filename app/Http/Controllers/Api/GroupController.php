@@ -55,7 +55,13 @@ class GroupController extends Controller
                         'folder'         => 'whispr/groups',
                         'public_id'      => 'group_' . $group->id,
                         'overwrite'      => true,
-                        'transformation' => ['width' => 200, 'height' => 200, 'crop' => 'fill'],
+                        'transformation' => [
+                            'width'   => 400,
+                            'height'  => 400,
+                            'crop'    => 'fill',
+                            'gravity' => 'center',
+                            'quality' => 'auto',
+                            ],
                     ]
                 );
                 $group->update(['image' => $result['url']]);
@@ -134,7 +140,13 @@ class GroupController extends Controller
                         'folder'         => 'whispr/groups',
                         'public_id'      => 'group_' . $group->id,
                         'overwrite'      => true,
-                        'transformation' => ['width' => 200, 'height' => 200, 'crop' => 'fill'],
+                        'transformation' => [
+                            'width'   => 400,
+                            'height'  => 400,
+                            'crop'    => 'fill',
+                            'gravity' => 'center',
+                            'quality' => 'auto',
+                            ],
                     ]
                 );
                 $data['image'] = $result['url'];
@@ -260,7 +272,13 @@ class GroupController extends Controller
                 'folder'         => 'whispr/groups',
                 'public_id'      => 'group_' . $group->id,
                 'overwrite'      => true,
-                'transformation' => ['width' => 200, 'height' => 200, 'crop' => 'fill'],
+                'transformation' => [
+                    'width'   => 400,
+                    'height'  => 400,
+                    'crop'    => 'fill',
+                    'gravity' => 'center',
+                    'quality' => 'auto',
+                    ],
             ]
         );
         $group->update(['image' => $result['url']]);
