@@ -82,9 +82,13 @@ class AuthController extends Controller
 
     public function me(Request $request)
     {
-        $user = $request->user();
-        return response()->json(array_merge($user->toArray(), [
-            'avatar_url' => $user->avatarUrl(),
-        ]));
+    $user = $request->user();
+    $user->update([
+        'is_online'    => true,
+        'last_seen_at' => now(),
+    ]);
+    return response()->json(array_merge($user->fresh()->toArray(), [
+        'avatar_url' => $user->avatarUrl(),
+    ]));
     }
 }
