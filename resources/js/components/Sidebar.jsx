@@ -268,7 +268,7 @@ function ConversationItem({ conversation, active, currentUser }) {
                 <div className="flex items-center justify-between">
                     <p className={`text-xs truncate pr-2 ${unread > 0 && !active ? 'text-gray-300 font-medium' : 'text-gray-500'}`}>
                         {isGroup && last?.sender ? `${last.sender.name?.split(' ')[0]}: ` : ''}
-                        {last?.is_deleted ? '🚫 Deleted' : last?.body || 'No messages yet'}
+                        {last?.is_deleted ? '🚫 Deleted' : last?.body || (last ? '📎 Attachment' : 'No messages yet')}
                     </p>
                     {unread > 0 && (
                         <span className="bg-indigo-500 text-white text-[10px] font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5 flex-shrink-0">
