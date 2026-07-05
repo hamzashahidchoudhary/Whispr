@@ -36,9 +36,13 @@ class Group extends Model
     }
 
     public function imageUrl(): string
-    {
-        return $this->image
-            ? asset('storage/' . $this->image)
-            : 'https://ui-avatars.com/api/?name=' . urlencode($this->name) . '&background=6366f1&color=fff';
+{
+    if ($this->image) {
+        if (str_starts_with($this->image, 'http://') || str_starts_with($this->image, 'https://')) {
+            return $this->image;
+        }
+        return asset('storage/' . $this->image);
     }
+    return 'https://ui-avatars.com/api/?name=' . urlencode($this->name) . '&background=6366f1&color=fff&size=128';
+}
 }
