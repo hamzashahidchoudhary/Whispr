@@ -49,7 +49,12 @@ export default function ConversationView() {
         }
     }
 
-    useEffect(() => { loadConversation() }, [id])
+    useEffect(() => {
+    loadConversation()
+    // Refresh every 10 seconds to update online status
+    const interval = setInterval(loadConversation, 10000)
+    return () => clearInterval(interval)
+}, [id])
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
