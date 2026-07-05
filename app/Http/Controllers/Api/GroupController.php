@@ -50,20 +50,13 @@ class GroupController extends Controller
             try {
                 $cloudinary = new CloudinaryService();
                 $result = $cloudinary->upload(
-                    $request->file('image')->getRealPath(),
-                    [
-                        'folder'         => 'whispr/groups',
-                        'public_id'      => 'group_' . $group->id,
-                        'overwrite'      => true,
-                        'transformation' => [
-                            'width'   => 400,
-                            'height'  => 400,
-                            'crop'    => 'fill',
-                            'gravity' => 'center',
-                            'quality' => 'auto',
-                            ],
-                    ]
-                );
+    $request->file('image')->getRealPath(),
+    [
+        'folder'    => 'whispr/groups',
+        'public_id' => 'group_' . $group->id,
+        'overwrite' => true,
+    ]
+);
                 $group->update(['image' => $result['url']]);
             } catch (\Exception $e) {
                 $path = $request->file('image')->store('groups', 'public');
@@ -135,20 +128,13 @@ class GroupController extends Controller
             try {
                 $cloudinary = new CloudinaryService();
                 $result = $cloudinary->upload(
-                    $request->file('image')->getRealPath(),
-                    [
-                        'folder'         => 'whispr/groups',
-                        'public_id'      => 'group_' . $group->id,
-                        'overwrite'      => true,
-                        'transformation' => [
-                            'width'   => 400,
-                            'height'  => 400,
-                            'crop'    => 'fill',
-                            'gravity' => 'center',
-                            'quality' => 'auto',
-                            ],
-                    ]
-                );
+    $request->file('image')->getRealPath(),
+    [
+        'folder'    => 'whispr/groups',
+        'public_id' => 'group_' . $group->id,
+        'overwrite' => true,
+    ]
+);
                 $data['image'] = $result['url'];
             } catch (\Exception $e) {
                 $path = $request->file('image')->store('groups', 'public');
@@ -267,20 +253,13 @@ class GroupController extends Controller
     try {
         $cloudinary = new CloudinaryService();
         $result = $cloudinary->upload(
-            $request->file('image')->getRealPath(),
-            [
-                'folder'         => 'whispr/groups',
-                'public_id'      => 'group_' . $group->id,
-                'overwrite'      => true,
-                'transformation' => [
-                    'width'   => 400,
-                    'height'  => 400,
-                    'crop'    => 'fill',
-                    'gravity' => 'center',
-                    'quality' => 'auto',
-                    ],
-            ]
-        );
+    $request->file('image')->getRealPath(),
+    [
+        'folder'    => 'whispr/groups',
+        'public_id' => 'group_' . $group->id,
+        'overwrite' => true,
+    ]
+);
         $group->update(['image' => $result['url']]);
     } catch (\Exception $e) {
         $path = $request->file('image')->store('groups', 'public');
