@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { X, Crown, Shield, UserMinus, LogOut, Trash2, Plus, Search } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { X, Crown, Shield, UserMinus, LogOut, Trash2, Plus, Search, Camera } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../api/axios'
 
@@ -10,6 +10,8 @@ export default function GroupInfoModal({ groupId, onClose, onLeft, onDeleted }) 
     const [showAddMember, setShowAddMember] = useState(false)
     const [search, setSearch] = useState('')
     const [searchResults, setSearchResults] = useState([])
+    const [uploadingPhoto, setUploadingPhoto] = useState(false)
+    const photoRef = useRef(null)
 
     const loadGroup = () => {
         api.get(`/groups/${groupId}`).then(res => setGroup(res.data)).finally(() => setLoading(false))
@@ -29,15 +31,32 @@ export default function GroupInfoModal({ groupId, onClose, onLeft, onDeleted }) 
     const isAdmin = myRole === 'owner' || myRole === 'admin'
     const isOwner = myRole === 'owner'
 
+    const handlePhotoChange = async (e) => {
+        const file = e.target.files[0]
+        if (!file) return
+        setUploadingPhoto(true)
+        const fd = new FormData()
+        fd.append('image', file)
+        try {
+            await api.post(`/groups/${groupId}?_method=PUT`, fd, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            })
+            loadGroup()
+        } catch (err) {
+            console.error('Failed to update group photo', err)
+        } finally {
+            setUploadingPhoto(false)
+            e.target.value = ''
+        }
+    }
+
     const addMember = async (userId) => {
         try {
             await api.post(`/groups/${groupId}/members`, { user_id: userId })
             setSearch('')
             setSearchResults([])
             loadGroup()
-        } catch (err) {
-            console.error(err)
-        }
+        } catch (err) { console.error(err) }
     }
 
     const removeMember = async (userId) => {
@@ -45,18 +64,14 @@ export default function GroupInfoModal({ groupId, onClose, onLeft, onDeleted }) 
         try {
             await api.delete(`/groups/${groupId}/members/${userId}`)
             loadGroup()
-        } catch (err) {
-            console.error(err)
-        }
+        } catch (err) { console.error(err) }
     }
 
     const promoteMember = async (userId) => {
         try {
             await api.post(`/groups/${groupId}/promote/${userId}`)
             loadGroup()
-        } catch (err) {
-            console.error(err)
-        }
+        } catch (err) { console.error(err) }
     }
 
     const leaveGroup = async () => {
@@ -96,14 +111,42 @@ export default function GroupInfoModal({ groupId, onClose, onLeft, onDeleted }) 
                     </div>
                 ) : (
                     <div className="flex-1 overflow-y-auto">
-                        {/* Group header */}
+                        {/* Group header with photo */}
                         <div className="flex flex-col items-center text-center p-6 border-b border-white/5">
-                            <img src={group?.image_url} alt="" className="w-20 h-20 rounded-2xl object-cover mb-3" />
+                            <div className="relative mb-3">
+                                <img src={group?.image_url} alt=""
+                                    className="w-20 h-20 rounded-2xl object-cover" />
+                                {isAdmin && (
+                                    <>
+                                        <button
+                                            onClick={() => photoRef.current.click()}
+                                            disabled={uploadingPhoto}
+                                            className="absolute -bottom-2 -right-2 w-8 h-8 bg-indigo-600 hover:bg-indigo-700 rounded-xl flex items-center justify-center transition-colors shadow-lg"
+                                        >
+                                            {uploadingPhoto ? (
+                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            ) : (
+                                                <Camera size={14} className="text-white" />
+                                            )}
+                                        </button>
+                                        <input
+                                            ref={photoRef}
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handlePhotoChange}
+                                            className="hidden"
+                                        />
+                                    </>
+                                )}
+                            </div>
                             <h3 className="text-white font-bold text-lg">{group?.name}</h3>
                             {group?.description && (
                                 <p className="text-gray-500 text-sm mt-1">{group.description}</p>
                             )}
                             <p className="text-gray-600 text-xs mt-2">{group?.members?.length || 0} members</p>
+                            {isAdmin && (
+                                <p className="text-indigo-400 text-xs mt-1">Tap the camera icon to change group photo</p>
+                            )}
                         </div>
 
                         {/* Add member button */}
