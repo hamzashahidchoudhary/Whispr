@@ -218,7 +218,7 @@ The app is deployed on **Railway** with:
 
 **Muhammad Hamza**
 - GitHub: [@hamzashahidchoudhary](https://github.com/hamzashahidchoudhary)
-- LinkedIn: [Muhammad Hamza](https://linkedin.com/in/muhammad-hamza-choudhary)
+- LinkedIn: [Muhammad Hamza](https://linkedin.com/in/hamzashahidchoudhary)
 - Portfolio: [Muhammad Hamza — Full Stack Developer](https://muhammadhamza-dev.vercel.app/)
 
 ---
